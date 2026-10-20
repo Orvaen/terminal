@@ -95,6 +95,10 @@ func Run(args []string) int {
 	if inv.Command == "alias" {
 		return cmdAlias(inv.Packages)
 	}
+	switch inv.Command {
+	case "optimiser", "optimise", "optimize", "optimisation":
+		return cmdOptimise(inv.Packages, inv.Yes)
+	}
 	if inv.Command == "deps" || inv.Command == "build-dep" {
 		return cmdDeps(inv.Packages, inv.Command == "build-dep", inv.Yes)
 	}
@@ -386,6 +390,7 @@ Commandes :
   list [--upgradable]  Logiciels installés (ou ceux qui ont une mise à jour)
   windows-update       Installe uniquement les mises à jour Windows (admin)
   deps [install]       Outils dont le projet a besoin, et leur installation (= build-dep)
+  optimiser [etat|annuler]  Accélère le dev : Defender, Docker, compilation (demande avant)
   alias [nom id]       Tes noms : apt alias code Microsoft.VisualStudioCode (-r pour oublier)
   version              Affiche la version
 

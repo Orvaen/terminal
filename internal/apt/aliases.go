@@ -131,6 +131,7 @@ var aliasGroups = []aliasGroup{
 		{[]string{"chrome", "google-chrome", "google-chrome-stable"}, "Google.Chrome"},
 		{[]string{"chromium", "chromium-browser", "ungoogled-chromium"}, "Hibbiki.Chromium"},
 		{[]string{"firefox"}, "Mozilla.Firefox"},
+		{[]string{"sccache"}, "Mozilla.sccache"},
 		{[]string{"firefox-esr"}, "Mozilla.Firefox.ESR"},
 		{[]string{"brave", "brave-browser"}, "Brave.Brave"},
 		{[]string{"vivaldi", "vivaldi-stable"}, "Vivaldi.Vivaldi"},

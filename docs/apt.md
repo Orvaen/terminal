@@ -24,6 +24,7 @@ et `apt.exe` permet de l'utiliser aussi depuis PowerShell ou cmd.
 | `apt windows-update` | Installe uniquement les mises à jour Windows (administrateur) |
 | `apt deps` | Outils dont le projet a besoin, et ce qui manque, voir [plus bas](#les-outils-dun-projet--apt-deps) |
 | `apt deps install` | Installe ce qui manque, puis les dépendances du projet (alias `apt build-dep`) |
+| `apt optimiser [etat\|annuler]` | Accélère le développement (Defender, Docker, compilation), voir [plus bas](#accélérer-le-développement--apt-optimiser) |
 | `apt alias [nom identifiant]` | Tes noms de paquets, voir [plus bas](#tes-noms--apt-alias) |
 | `apt help`, `apt version` | Aide, version |
 
@@ -143,6 +144,37 @@ Sur le dépôt de VS Code, par exemple, `apt deps` trouve : Node 24 épinglé pa
 Composer, Maven, Gradle et Poetry sont installés par `apt` lui-même (voir
 [Installés par apt lui-même](#installés-par-apt-lui-même)). Pour le C/C++, `apt deps` installe gcc ; MSVC, s'il est
 déjà installé (`apt install build-essential`), est reconnu même s'il n'est pas dans le PATH.
+
+## Accélérer le développement : apt optimiser
+
+Sous Windows, ce qui ralentit `npm install`, une compilation ou Docker, c'est surtout le système autour.
+`apt optimiser` passe en revue ce qui peut être réglé sur ton PC, explique chaque changement et le demande avant
+de le faire (`-y` accepte ce qui est proposé par défaut) :
+
+| Réglage | Ce qu'il fait | Proposé si |
+|---|---|---|
+| Windows Defender | N'analyse plus les caches des outils (npm, pnpm, Yarn, pip, Poetry, uv, Go, cargo, rustup, Gradle, Maven, NuGet, Composer, sccache, les outils du terminal et la machine Docker) ni le dossier de ton projet, que tu choisis. Souvent 1,5 à 3 fois plus rapide. Administrateur requis (fenêtre UAC) | Defender analyse en temps réel |
+| Docker | Reste démarré 1 h sans activité au lieu de 10 min (`ORVAEN_DOCKER_IDLE=3600`) : moins de démarrages à froid | Docker léger installé |
+| CMake | `cmake --build` sur tous les cœurs (`CMAKE_BUILD_PARALLEL_LEVEL`) | cmake installé |
+| make | `MAKEFLAGS=-j<cœurs>`. **Non par défaut** : certains Makefile ne supportent pas les étapes en parallèle | make installé |
+| sccache | Installe sccache et le branche sur Rust (`RUSTC_WRAPPER`) et CMake (`CMAKE_C(XX)_COMPILER_LAUNCHER`) : une reconstruction ne recompile pas ce qui n'a pas changé | Rust ou un compilateur C/C++ |
+
+> [!WARNING]
+> Un dossier exclu de Windows Defender n'est plus analysé quand un fichier y est ouvert : n'y mets que du code en
+> qui tu as confiance (pas tes Téléchargements).
+
+| Commande | Effet |
+|---|---|
+| `apt optimiser` | Propose ce qui n'est pas encore fait |
+| `apt optimiser etat` | Ce qui est fait, ce qui reste |
+| `apt optimiser annuler` | Remet tout comme avant (exclusions retirées, variables rétablies à leur ancienne valeur) |
+
+Les variables sont enregistrées pour ton compte Windows : elles valent pour le terminal en cours et pour tous les
+programmes ouverts ensuite. Ce que le terminal a changé est noté dans `%APPDATA%\OrvaenTerminal\optimisations.json`.
+
+Deux gains restent à faire toi-même, `apt optimiser` les rappelle : un **Dev Drive** (Windows 11, Paramètres →
+Système → Stockage → Disques et volumes), et dans Docker, des **volumes** pour `node_modules`, `.venv` ou `target`
+plutôt qu'un dossier Windows monté (voir [Docker](docker.md)).
 
 ## Noms de paquets
 

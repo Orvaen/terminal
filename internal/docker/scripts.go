@@ -76,5 +76,6 @@ chmod +x /usr/local/bin/orvaen-dockerd
 // runningCheck : dockerd tourne et son socket est prêt.
 const runningCheck = `pgrep -x dockerd >/dev/null && test -S /var/run/docker.sock`
 
-// cliWrapper marque l'activité (pour l'arrêt automatique) puis lance le vrai client docker.
-const cliWrapper = `touch /run/orvaen-activity 2>/dev/null; exec docker "$@"`
+// cliWrapper vérifie que le moteur tourne (sinon code 222, sans rien lancer), marque l'activité
+// (pour l'arrêt automatique) puis lance le vrai client docker.
+const cliWrapper = runningCheck + ` || exit 222; touch /run/orvaen-activity 2>/dev/null; exec docker "$@"`

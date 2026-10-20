@@ -17,7 +17,7 @@ import (
 // Subcommands : les sous-commandes d'apt, dans l'ordre d'usage.
 var Subcommands = []string{
 	"update", "upgrade", "full-upgrade", "dist-upgrade", "install", "remove", "purge",
-	"search", "show", "list", "windows-update", "deps", "build-dep", "alias", "autoremove", "clean", "help", "version",
+	"search", "show", "list", "windows-update", "deps", "build-dep", "optimiser", "alias", "autoremove", "clean", "help", "version",
 }
 
 // PackageSubcommand indique si la sous-commande attend des logiciels installés (true)

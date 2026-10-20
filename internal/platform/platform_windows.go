@@ -406,3 +406,46 @@ func FindInstalledExe(name string) string {
 	}
 	return strings.TrimSpace(string(out))
 }
+
+// UserEnv lit une variable d'environnement enregistrée pour l'utilisateur (registre), ok=false si absente.
+func UserEnv(name string) (string, bool) {
+	script := `$v = [Environment]::GetEnvironmentVariable(` + psQuote(name) + `, 'User'); ` +
+		`if ($null -eq $v) { exit 3 }; [Console]::Out.Write($v)`
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, err := cmd.Output()
+	if err != nil {
+		return "", false
+	}
+	return string(out), true
+}
+
+// SetUserEnv enregistre (ou supprime, avec remove) une variable d'environnement de l'utilisateur.
+// Windows prévient les programmes : les fenêtres ouvertes ensuite la voient.
+func SetUserEnv(name, value string, remove bool) error {
+	v := psQuote(value)
+	if remove {
+		v = "$null"
+	}
+	script := `$ErrorActionPreference = 'Stop'; [Environment]::SetEnvironmentVariable(` + psQuote(name) + `, ` + v + `, 'User')`
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("%v : %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// PowerShell lance un script PowerShell (sans fenêtre) et renvoie sa sortie.
+func PowerShell(script string) (string, error) {
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(out), fmt.Errorf("%v : %s", err, strings.TrimSpace(string(out)))
+	}
+	return string(out), nil
+}
+
+// PSQuote protège une chaîne pour PowerShell ('…').
+func PSQuote(s string) string { return psQuote(s) }

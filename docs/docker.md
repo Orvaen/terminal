@@ -47,7 +47,26 @@ $ apt install docker
 - **Indépendant du terminal** : tu peux fermer la fenêtre, tes conteneurs continuent de tourner.
 
 Pour changer le délai, définis la variable d'environnement `ORVAEN_DOCKER_IDLE` (en secondes ; `0` désactive
-l'arrêt automatique), puis redémarre le moteur avec `docker engine stop`.
+l'arrêt automatique), puis redémarre le moteur avec `docker engine stop`. `apt optimiser` propose de le passer à 1 h.
+
+Quand le moteur tourne, une commande `docker` ne lance qu'un seul `wsl.exe` : le script de la machine vérifie
+lui-même que le moteur est prêt (avant, trois lancements : liste des machines, état du moteur, puis la commande).
+
+### Projets lents dans un conteneur
+
+Un dossier Windows monté (`-v C:\projet:/app`, ou `.:/app` dans `compose.yaml`) passe par le partage de fichiers
+de WSL, beaucoup plus lent que le disque de la machine pour les petits fichiers. `node_modules` (des dizaines de
+milliers de fichiers) en souffre le plus. Garde le code monté, mais mets les dépendances dans un volume :
+
+```yaml
+services:
+  api:
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules   # dans la machine Docker : rapide
+volumes:
+  node_modules:
+```
 
 ## Au quotidien
 

@@ -92,3 +92,19 @@ func Locale() string {
 
 // LocaleDetails : hors Windows, LANG pour les deux.
 func LocaleDetails() (ui, format string) { return Locale(), Locale() }
+
+// UserEnv : hors Windows, pas de variables enregistrées.
+func UserEnv(name string) (string, bool) { return "", false }
+
+// SetUserEnv n'est pas pris en charge hors Windows.
+func SetUserEnv(name, value string, remove bool) error {
+	return errors.New("variables utilisateur : Windows uniquement")
+}
+
+// PowerShell n'est pas pris en charge hors Windows.
+func PowerShell(script string) (string, error) {
+	return "", errors.New("PowerShell : Windows uniquement")
+}
+
+// PSQuote protège une chaîne pour PowerShell ('…').
+func PSQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }

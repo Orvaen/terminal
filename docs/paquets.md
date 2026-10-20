@@ -10,7 +10,7 @@ ont été vérifiés dans le dépôt des manifestes winget. Pour un nom absent, 
 qui porte ce nom court ou fournit cette commande, et te fait choisir si plusieurs correspondent : voir
 [apt › Noms de paquets](apt.md#noms-de-paquets).
 
-264 noms pour 143 logiciels, plus les outils ci-dessous.
+265 noms pour 144 logiciels, plus les outils ci-dessous.
 
 ## Installés par apt lui-même
 
@@ -187,6 +187,7 @@ Pour ces paquets, `apt` explique l'équivalent au lieu d'installer autre chose.
 | `chrome`, `google-chrome`, `google-chrome-stable` | `Google.Chrome` |
 | `chromium`, `chromium-browser`, `ungoogled-chromium` | `Hibbiki.Chromium` |
 | `firefox` | `Mozilla.Firefox` |
+| `sccache` | `Mozilla.sccache` |
 | `firefox-esr` | `Mozilla.Firefox.ESR` |
 | `brave`, `brave-browser` | `Brave.Brave` |
 | `vivaldi`, `vivaldi-stable` | `Vivaldi.Vivaldi` |

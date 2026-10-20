@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -158,19 +159,36 @@ func Run(args []string) int {
 		ui.Errorf("ce Docker léger n'est disponible que sous Windows.")
 		return 1
 	}
-	if !Installed() {
+	if !installedFast() {
 		ui.Errorf("Docker n'est pas installé. Lance : apt install docker")
 		return 1
-	}
-	if code := ensureRunning(); code != 0 {
-		return code
 	}
 	wargs := []string{"-d", Distro, "-u", "root"}
 	if cwd, err := os.Getwd(); err == nil {
 		wargs = append(wargs, "--cd", cwd)
 	}
-	wargs = append(wargs, "--exec", "sh", "-c", cliWrapper, "docker")
-	return wsl(append(wargs, convertArgs(args)...)...)
+	wargs = append(append(wargs, "--exec", "sh", "-c", cliWrapper, "docker"), convertArgs(args)...)
+	// Un seul lancement de wsl.exe quand le moteur tourne déjà : le script vérifie lui-même que
+	// dockerd est prêt, et rend le code engineStopped sinon (rien n'a alors été lancé).
+	code := wsl(wargs...)
+	if code == engineStopped && !engineRunning() {
+		if code := ensureRunning(); code != 0 {
+			return code
+		}
+		code = wsl(wargs...)
+	}
+	return code
+}
+
+// engineStopped : code rendu par cliWrapper quand le moteur n'est pas démarré.
+const engineStopped = 222
+
+// installedFast : le disque de la machine existe (sans lancer wsl --list, qui prend du temps).
+func installedFast() bool {
+	if _, err := os.Stat(filepath.Join(dataDir(), "ext4.vhdx")); err == nil {
+		return true
+	}
+	return Installed()
 }
 
 var drivePath = regexp.MustCompile(`(^|[=,])([A-Za-z]):[\\/]`)
@@ -207,7 +225,7 @@ func engine(args []string) int {
 	switch sub {
 	case "status":
 		if engineRunning() {
-			ui.Info("Moteur Docker : en marche (arrêt automatique après 10 min d'inactivité).")
+			ui.Info("Moteur Docker : en marche (arrêt automatique après " + IdleText() + " d'inactivité).")
 		} else {
 			ui.Info("Moteur Docker : arrêté (il démarre tout seul à la prochaine commande docker).")
 		}
@@ -381,6 +399,22 @@ func Uninstall(yes bool) int {
 	_ = os.RemoveAll(dataDir())
 	ui.Info("Docker léger est désinstallé.")
 	return 0
+}
+
+// IdleText : le délai d'arrêt automatique du moteur (ORVAEN_DOCKER_IDLE, 600 s par défaut), lisible.
+func IdleText() string {
+	n, err := strconv.Atoi(os.Getenv("ORVAEN_DOCKER_IDLE"))
+	switch {
+	case err != nil || n < 0:
+		return "10 min"
+	case n == 0:
+		return "jamais"
+	case n%3600 == 0:
+		return fmt.Sprintf("%d h", n/3600)
+	case n >= 60:
+		return fmt.Sprintf("%d min", n/60)
+	}
+	return fmt.Sprintf("%d s", n)
 }
 
 // Subcommands : sous-commandes docker proposées par la complétion (Tab).
