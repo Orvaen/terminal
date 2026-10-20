@@ -59,6 +59,7 @@ func New() *Shell {
 	}
 	s.installed = func() []string { return apt.InstalledNames(4 * time.Second) }
 	addUnixTools()
+	setupCoreutils() // Coreutils de Microsoft, s'il est installé, passe en tête du PATH
 	if restore, ok := platform.EnableRawInput(); ok {
 		restore()
 		s.edit = &editor{
@@ -149,6 +150,7 @@ func (s *Shell) run(line string) {
 	s.RunLine(line)
 	if strings.Contains(strings.ToLower(line), "apt") {
 		apt.InvalidateInstalled()
+		setupCoreutils() // « apt install coreutils » : utilisable tout de suite
 	}
 }
 
@@ -208,9 +210,9 @@ func (s *Shell) RunLine(line string) int {
 }
 
 func (s *Shell) runSegment(seg segment) int {
-	// Tubes, redirections, variables PowerShell : PowerShell sait faire.
+	// Tubes et redirections : le terminal les gère lui-même (pipeline.go), PowerShell en repli.
 	if seg.special {
-		return s.powershell(seg.text)
+		return s.runSpecial(seg.text)
 	}
 	args, err := tokenize(seg.text, homeDir())
 	if err != nil {
@@ -220,11 +222,15 @@ func (s *Shell) runSegment(seg segment) int {
 	if len(args) == 0 {
 		return s.last
 	}
-	if b, ok := builtins[strings.ToLower(args[0])]; ok {
-		return b.run(s, args[1:])
-	}
-	if path, err := exec.LookPath(args[0]); err == nil {
-		return s.execProgram(path, args[1:])
+	if r, ok := s.resolve(args); ok {
+		if err := r.guard(args[0]); err != nil {
+			s.errorf("%v", err)
+			return 1
+		}
+		if r.builtin != nil {
+			return r.builtin.run(s, r.args)
+		}
+		return s.execProgram(r.path, append(append([]string{}, r.pre...), r.args...))
 	}
 	// Ni commande intégrée ni programme : cmdlet, alias ou fonction PowerShell (dir, Get-Process...).
 	return s.powershell(seg.text)

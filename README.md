@@ -19,7 +19,8 @@ $ sudo apt full-upgrade
 
 ## Fonctionnalités
 
-- **Commandes Linux** : `ls`, `cd`, `cat`, `rm`, `cp`, `mv`, `mkdir -p`, enchaînements `&&` et `||`, complétion avec Tab.
+- **Commandes Linux** : `ls`, `cd`, `cat`, `rm`, `cp`, `mv`, `mkdir -p`, enchaînements `&&` et `||`, vrais tubes et redirections (`|`, `>`, `2>&1`), complétion avec Tab.
+- **Coreutils de Microsoft** : `apt install coreutils` ajoute `grep`, `head`, `sort`, `find`, `xargs`… (78 commandes Unix natives), branchées sur le terminal.
 - **apt** : installe et met à jour tes logiciels via winget, et Windows via Windows Update.
 - **sudo** : lance une commande en administrateur.
 - **Docker léger** : le vrai Docker Engine sans Docker Desktop, qui s'éteint tout seul quand il ne sert pas.

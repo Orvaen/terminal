@@ -38,3 +38,6 @@ func RunSelfElevated(args ...string) int { return 1 }
 
 // KillTree arrête un processus (hors Windows, sans ses enfants : utilisé seulement pour les tests).
 func KillTree(p *os.Process) error { return p.Kill() }
+
+// RegistryPathDirs : hors Windows, pas de registre.
+func RegistryPathDirs() []string { return nil }

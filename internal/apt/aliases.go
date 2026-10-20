@@ -8,11 +8,13 @@ import (
 // aliases associe des noms courts façon Linux aux identifiants winget exacts.
 // Tout nom absent de la liste est transmis tel quel à winget, qui fait sa propre recherche.
 var aliases = map[string]string{
-	"7zip":    "7zip.7zip",
-	"chrome":  "Google.Chrome",
-	"code":    "Microsoft.VisualStudioCode",
-	"curl":    "cURL.cURL",
-	"discord": "Discord.Discord",
+	"7zip":   "7zip.7zip",
+	"chrome": "Google.Chrome",
+	"code":   "Microsoft.VisualStudioCode",
+	// Coreutils pour Windows : ls, grep, head, sort, find, xargs… (78 commandes Unix natives).
+	"coreutils": "Microsoft.Coreutils",
+	"curl":      "cURL.cURL",
+	"discord":   "Discord.Discord",
 	// « docker » installe le Docker léger (voir isDocker) ; Docker Desktop reste disponible sous ce nom.
 	"docker-desktop": "Docker.DockerDesktop",
 	"firefox":        "Mozilla.Firefox",

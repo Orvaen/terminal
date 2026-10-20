@@ -90,6 +90,26 @@ Une ligne qui commence par une espace n'est pas gardée dans l'historique.
 
 Les guillemets simples et doubles protègent les espaces : `cp "mon fichier.txt" ~/docs`.
 
+## Tubes et redirections
+
+Le terminal relie lui-même les commandes, comme bash :
+
+| Syntaxe | Effet | Exemple |
+|---|---|---|
+| `a \| b` | La sortie de `a` devient l'entrée de `b` | `cat noms.txt \| sort \| uniq -c` |
+| `> fichier` | Écrit la sortie dans un fichier (le remplace) | `ls > liste.txt` |
+| `>> fichier` | Ajoute à la fin du fichier | `echo fini >> log.txt` |
+| `< fichier` | Lit l'entrée depuis un fichier | `sort < noms.txt` |
+| `2> fichier`, `2>> fichier` | Écrit les erreurs dans un fichier | `make 2> erreurs.log` |
+| `2>&1` | Envoie les erreurs avec la sortie | `npm test > test.log 2>&1` |
+| `&> fichier` | Sortie et erreurs dans le même fichier | `make &> build.log` |
+
+Les commandes intégrées y participent : `ls | grep txt` (un nom par ligne, comme sous Linux), `echo … > f`,
+`cat < f`. Les fichiers sont écrits en UTF-8. Le code de sortie est celui de la dernière commande du tube.
+
+PowerShell prend le relais pour ce que le terminal ne gère pas : une variable (`$env:PATH`), une commande entre
+`` ` ``, un `&` seul, ou une commande PowerShell dans le tube (`Get-Process | Select -First 3`, `dir | …`).
+
 ## Tout le reste
 
 Quand ce que tu tapes n'est pas une commande intégrée :
@@ -97,8 +117,31 @@ Quand ce que tu tapes n'est pas une commande intégrée :
 1. si c'est un **programme Windows** (`git`, `code`, `node`, `notepad`…), il est lancé directement ;
 2. sinon, la ligne est confiée à **PowerShell** : ses commandes (`dir`, `Get-Process`…) fonctionnent donc aussi.
 
-Les lignes qui contiennent un tube (`|`), une redirection (`>`, `<`) ou une variable (`$env:...`) sont aussi
-confiées à PowerShell. Elles prennent alors une demi-seconde de plus, le temps que PowerShell démarre.
+Les lignes qui contiennent une variable (`$env:...`) sont aussi confiées à PowerShell, voir
+[Tubes et redirections](#tubes-et-redirections). Elles prennent alors une demi-seconde de plus, le temps que
+PowerShell démarre.
+
+## Coreutils de Microsoft
+
+[Coreutils pour Windows](https://learn.microsoft.com/windows/core-utils/commands) apporte 78 commandes Unix
+natives (d'après [uutils](https://uutils.github.io/)) : `grep`, `head`, `tail`, `wc`, `sort`, `uniq`, `cut`,
+`tr`, `find`, `xargs`, `tee`, `du`, `df`, `sha256sum`, `base64`, `seq`…
+
+```text
+$ apt install coreutils
+```
+
+Elles marchent tout de suite, sans rouvrir le terminal. Avec elles :
+
+| | Ce que fait le terminal |
+|---|---|
+| PATH | Le dossier de Coreutils passe **en tête** : `find`, `sort`, `date`, `hostname` sont ceux de Linux, pas ceux de Windows (comme dans Git Bash) |
+| Commandes intégrées | `ls`, `cat`, `rm`, `cp`, `mv`, `mkdir`, `rmdir`, `touch`, `echo` restent celles du terminal pour les usages courants, et passent la main à Coreutils dès qu'une option leur manque : `ls --color -lt`, `cat -n`, `rm -i`, `echo -e`, `env VAR=x commande` |
+| Protection | `rm` refuse toujours de supprimer la racine d'un disque ou ton dossier personnel, même via Coreutils |
+| Tubes | `find . -name "*.log" \| xargs rm`, `cat f \| grep x \| wc -l` : de vrais tubes, sans les alias PowerShell qui remplacent `cat`, `ls` ou `sort` dans PowerShell |
+
+Pour désactiver ce comportement : variable d'environnement `ORVAEN_NO_COREUTILS=1`. Pour retirer une commande
+précise : `coreutils-manager disable <commande>`.
 
 ## Outils Linux de Git et Makefile
 
@@ -138,3 +181,4 @@ Exécute la ligne puis quitte, avec le code de sortie de la dernière commande. 
 ## Limites actuelles
 
 - Pas de variables façon Linux (`$HOME`) : une ligne qui contient `$` est confiée à PowerShell, qui utilise `$env:HOME`.
+- Pas de `&` pour lancer une commande en arrière-plan : utilise `run -p` (voir [run](scripts.md)).

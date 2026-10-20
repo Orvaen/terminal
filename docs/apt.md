@@ -36,6 +36,7 @@ Les noms courts habituels sont traduits en identifiants winget exacts :
 | `git` | `Git.Git` |
 | `node`, `nodejs` | `OpenJS.NodeJS.LTS` |
 | `node-current` | `OpenJS.NodeJS` (version « Current », hors LTS) |
+| `coreutils` | `Microsoft.Coreutils` : 78 commandes Unix natives, voir [Commandes › Coreutils](commandes.md#coreutils-de-microsoft) |
 | `python`, `python3` | `Python.Python.3.12` |
 | `vscode`, `code` | `Microsoft.VisualStudioCode` |
 | `go`, `golang` | `GoLang.Go` |

@@ -249,13 +249,16 @@ func pathCandidates(word string, dirsOnly bool) []string {
 }
 
 var (
-	cmdOnce  sync.Once
-	cmdNames []string
+	cmdMu    sync.Mutex
+	cmdNames []string // nil : liste à (re)construire
 )
 
 // commandNames : commandes intégrées et programmes du PATH (lus une seule fois).
 func commandNames() []string {
-	cmdOnce.Do(func() {
+	cmdMu.Lock()
+	defer cmdMu.Unlock()
+	if cmdNames == nil {
+		cmdNames = []string{}
 		seen := map[string]bool{}
 		add := func(n string) {
 			if k := strings.ToLower(n); !seen[k] {
@@ -292,8 +295,15 @@ func commandNames() []string {
 				add(name)
 			}
 		}
-	})
+	}
 	return cmdNames
+}
+
+// resetCommandNames : la liste des commandes sera relue (le PATH a changé).
+func resetCommandNames() {
+	cmdMu.Lock()
+	cmdNames = nil
+	cmdMu.Unlock()
 }
 
 // prefetchForLine lance la lecture des logiciels installés dès qu'on tape une commande apt,

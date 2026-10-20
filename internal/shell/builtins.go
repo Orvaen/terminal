@@ -48,7 +48,7 @@ func init() {
 		"ls":     {runLs, "ls [-a] [-l] [-h] [chemin...]", "Liste un dossier"},
 		"cd":     {runCd, "cd [dossier | - | ~]", "Change de dossier (accepte /c/Users/...)"},
 		"pwd":    {runPwd, "pwd", "Affiche le dossier courant"},
-		"cat":    {runCat, "cat <fichier...>", "Affiche le contenu de fichiers"},
+		"cat":    {runCat, "cat [fichier...]", "Affiche le contenu de fichiers"},
 		"touch":  {runTouch, "touch <fichier...>", "Crée un fichier vide ou met à jour sa date"},
 		"mkdir":  {runMkdir, "mkdir [-p] <dossier...>", "Crée des dossiers"},
 		"rm":     {runRm, "rm [-r] [-f] <chemin...>", "Supprime des fichiers (et dossiers avec -r)"},
@@ -350,11 +350,16 @@ func runCat(s *Shell, args []string) int {
 		return 2
 	}
 	if len(files) == 0 {
-		s.errorf("usage : cat <fichier...>")
-		return 1
+		files = []string{"-"} // sans fichier : l'entrée (un tube, un fichier avec <, ou le clavier)
 	}
 	code := 0
 	for _, f := range files {
+		if f == "-" {
+			if s.in != nil {
+				_, _ = io.Copy(s.out, s.in)
+			}
+			continue
+		}
 		fh, err := os.Open(f)
 		if err != nil {
 			s.errorf("cat: %s : %v", f, unwrap(err))
@@ -772,10 +777,15 @@ func runHelp(s *Shell, args []string) int {
 	}
 	fmt.Fprint(s.out, `
 Aussi : apt-get (= apt), docker-compose (= docker compose), ll (= ls -l).
-Enchaîne avec  &&  ||  ;   — les tubes ( | ) et redirections ( > ) passent par PowerShell.
+Enchaîne avec  &&  ||  ;   et relie avec  |  >  >>  <  2>&1  (comme bash).
 Tout le reste est lancé tel quel : programmes Windows (git, code, notepad...)
 et commandes PowerShell (dir, Get-Process...).
 `)
+	if coreutilsDir() != "" {
+		fmt.Fprintln(s.out, "Coreutils de Microsoft : 78 commandes Unix (grep, head, sort, find, xargs, wc…).")
+	} else {
+		fmt.Fprintln(s.out, "Pour 78 commandes Unix de plus (grep, head, sort, xargs…) : apt install coreutils")
+	}
 	return 0
 }
 

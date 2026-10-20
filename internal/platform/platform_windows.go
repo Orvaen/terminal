@@ -179,3 +179,51 @@ func KillTree(p *os.Process) error {
 	}
 	return nil
 }
+
+// RegistryPathDirs lit les dossiers du PATH utilisateur et système enregistrés dans le registre.
+// Un logiciel installé pendant que le terminal est ouvert y figure, alors que le PATH du processus
+// en cours ne le voit pas encore.
+func RegistryPathDirs() []string {
+	var dirs []string
+	for _, key := range []string{
+		`HKCU\Environment`,
+		`HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment`,
+	} {
+		cmd := exec.Command("reg", "query", key, "/v", "Path")
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		out, err := cmd.Output()
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(out), "\n") {
+			fields := strings.Fields(line)
+			if len(fields) < 3 || !strings.EqualFold(fields[0], "Path") {
+				continue
+			}
+			// « Path    REG_EXPAND_SZ    valeur avec espaces »
+			idx := strings.Index(line, fields[1]) + len(fields[1])
+			for _, d := range strings.Split(strings.TrimSpace(line[idx:]), ";") {
+				if d = strings.TrimSpace(expandPercent(d)); d != "" {
+					dirs = append(dirs, d)
+				}
+			}
+		}
+	}
+	return dirs
+}
+
+// expandPercent développe les %VARIABLES% de Windows.
+func expandPercent(s string) string {
+	for {
+		i := strings.Index(s, "%")
+		if i < 0 {
+			return s
+		}
+		j := strings.Index(s[i+1:], "%")
+		if j < 0 {
+			return s
+		}
+		name := s[i+1 : i+1+j]
+		s = s[:i] + os.Getenv(name) + s[i+2+j:]
+	}
+}
