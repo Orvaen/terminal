@@ -23,6 +23,7 @@ $ sudo apt full-upgrade
 - **apt** : installe et met à jour tes logiciels via winget, et Windows via Windows Update.
 - **sudo** : lance une commande en administrateur.
 - **Docker léger** : le vrai Docker Engine sans Docker Desktop, qui s'éteint tout seul quand il ne sert pas.
+- **req** : teste tes API (GET, POST, DELETE…) depuis un simple fichier `.http`, avec des vérifications.
 
 ## Installation
 
@@ -43,5 +44,6 @@ et dans Windows Terminal.
 - [Commandes](docs/commandes.md)
 - [apt](docs/apt.md)
 - [Docker léger](docs/docker.md)
+- [req : tester des requêtes HTTP](docs/req.md)
 - [Logo](docs/identite.md)
 - [Développement](docs/developpement.md)

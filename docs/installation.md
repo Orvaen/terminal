@@ -16,7 +16,7 @@ cd terminal
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-`build.ps1` compile les trois exécutables, puis lance l'installeur.
+`build.ps1` compile les quatre exécutables, puis lance l'installeur.
 
 ## Depuis une release
 
@@ -32,7 +32,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 | Étape | Détail |
 |---|---|
-| Copie | `terminal.exe`, `apt.exe`, `apt-get.exe`, `docker.exe` et l'icône dans `%LOCALAPPDATA%\Programs\apt-windows` |
+| Copie | `terminal.exe`, `apt.exe`, `apt-get.exe`, `docker.exe`, `req.exe` et l'icône dans `%LOCALAPPDATA%\Programs\apt-windows` |
 | PATH | Ajoute ce dossier à ton PATH utilisateur, pour utiliser `apt` et `docker` depuis PowerShell, cmd ou VS Code |
 | Raccourcis | **Orvaen Terminal** dans le menu Démarrer et sur le Bureau |
 | Windows Terminal | Ajoute un profil **Orvaen Terminal** (menu ⌄ des onglets) |

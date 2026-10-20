@@ -57,6 +57,7 @@ Une ligne qui commence par une espace n'est pas gardée dans l'historique.
 | `apt <commande> [paquets]` | Logiciels et mises à jour Windows, voir [apt](apt.md) |
 | `sudo <commande>` | Exécute en administrateur, voir [plus bas](#sudo) |
 | `docker`, `docker-compose` | Docker léger, voir [Docker](docker.md) |
+| `req <fichier.http>`, `req nouveau` | Requêtes HTTP, voir [req](req.md) |
 | `ls [-a] [-l] [-h] [-1]`, `ll` | Liste un dossier. Les fichiers cachés de Windows sont masqués sans `-a` |
 | `cd [dossier]` | Change de dossier. `cd` seul : dossier perso ; `cd -` : dossier précédent ; accepte `/c/Users/...` comme Git Bash |
 | `pwd` | Affiche le dossier courant |

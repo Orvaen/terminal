@@ -12,9 +12,10 @@ go vet ./...
 GOOS=windows go build -o terminal.exe ./cmd/terminal
 GOOS=windows go build -o apt.exe ./cmd/apt
 GOOS=windows go build -o docker.exe ./cmd/docker
+GOOS=windows go build -o req.exe ./cmd/req
 ```
 
-Sous Windows, `build.ps1` compile les trois exécutables et lance l'installeur.
+Sous Windows, `build.ps1` compile les quatre exécutables et lance l'installeur.
 
 ## Structure
 
@@ -22,9 +23,11 @@ Sous Windows, `build.ps1` compile les trois exécutables et lance l'installeur.
 cmd/terminal/       le terminal (shell interactif) : terminal.exe
 cmd/apt/            la commande apt seule : apt.exe
 cmd/docker/         la commande docker seule : docker.exe
+cmd/req/            la commande req seule : req.exe
 internal/shell/     analyse des lignes, prompt, commandes intégrées
 internal/apt/       commandes apt, noms de paquets, winget, Windows Update
 internal/docker/    Docker léger : machine Alpine dans WSL2, moteur à la demande
+internal/req/       req : fichiers .http, requêtes, vérifications
 internal/platform/  droits administrateur, élévation UAC, console Windows
 internal/ui/        affichage des messages (==>, W:, E:)
 docs/               documentation

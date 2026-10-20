@@ -1,4 +1,4 @@
-﻿# Installe Orvaen Terminal (terminal.exe), apt.exe et docker.exe pour l'utilisateur courant :
+﻿# Installe Orvaen Terminal (terminal.exe), apt.exe, docker.exe et req.exe pour l'utilisateur courant :
 #  - copie dans %LOCALAPPDATA%\Programs\apt-windows et ajout au PATH
 #  - raccourcis dans le menu Démarrer et sur le Bureau
 #  - profil dans Windows Terminal
@@ -9,7 +9,8 @@ $AppName = 'Orvaen Terminal'
 $aptSrc    = Join-Path $PSScriptRoot 'apt.exe'
 $termSrc   = Join-Path $PSScriptRoot 'terminal.exe'
 $dockerSrc = Join-Path $PSScriptRoot 'docker.exe'
-foreach ($f in $aptSrc, $termSrc, $dockerSrc) {
+$reqSrc    = Join-Path $PSScriptRoot 'req.exe'
+foreach ($f in $aptSrc, $termSrc, $dockerSrc, $reqSrc) {
     if (-not (Test-Path $f)) {
         throw "$(Split-Path $f -Leaf) est introuvable à côté de install.ps1. Lance build.ps1 ou télécharge une release (voir README)."
     }
@@ -23,6 +24,7 @@ Copy-Item $aptSrc  (Join-Path $dest 'apt.exe') -Force
 Copy-Item $aptSrc  (Join-Path $dest 'apt-get.exe') -Force
 Copy-Item $termSrc $termExe -Force
 Copy-Item $dockerSrc (Join-Path $dest 'docker.exe') -Force
+Copy-Item $reqSrc    (Join-Path $dest 'req.exe') -Force
 
 # Icône (symbole Invite) : à côté du script dans une release, dans docs\brand depuis les sources
 $icon = $null

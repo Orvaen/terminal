@@ -178,3 +178,18 @@ func TestRenderWrapsLongLines(t *testing.T) {
 		t.Fatal("le second rendu doit remonter d'une ligne avant de redessiner")
 	}
 }
+
+func TestTabReq(t *testing.T) {
+	s, _, _, work := testShell(t)
+	os.WriteFile(filepath.Join(work, "api.http"), []byte("GET http://x"), 0o644)
+	os.WriteFile(filepath.Join(work, "apropos.txt"), nil, 0o644)
+	if got, _, _ := readWith(t, s, "req ap\t\r"); got != "req api.http " {
+		t.Errorf("fichier .http : %q", got)
+	}
+	if got, _, _ := readWith(t, s, "req nou\t\r"); got != "req nouveau " {
+		t.Errorf("sous-commande : %q", got)
+	}
+	if got, _, _ := readWith(t, s, "req liste a\t\r"); got != "req liste api.http " {
+		t.Errorf("req liste : %q", got)
+	}
+}

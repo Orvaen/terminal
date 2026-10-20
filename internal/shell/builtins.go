@@ -17,6 +17,7 @@ import (
 	"github.com/Orvaen/terminal/internal/apt"
 	"github.com/Orvaen/terminal/internal/docker"
 	"github.com/Orvaen/terminal/internal/platform"
+	"github.com/Orvaen/terminal/internal/req"
 	"github.com/Orvaen/terminal/internal/ui"
 )
 
@@ -31,7 +32,7 @@ var builtins map[string]builtin
 
 // Ordre d'affichage dans « help ».
 var builtinOrder = []string{
-	"apt", "sudo", "docker",
+	"apt", "sudo", "docker", "req",
 	"ls", "cd", "pwd", "cat", "touch", "mkdir", "rm", "rmdir", "cp", "mv",
 	"echo", "clear", "which", "export", "unset", "env", "open", "help", "exit",
 }
@@ -40,6 +41,7 @@ func init() {
 	builtins = map[string]builtin{
 		"apt":    {runApt, "apt <commande> [paquets]", "Gestion des logiciels (winget) et mises à jour Windows"},
 		"docker": {runDocker, "docker <commande>", "Docker léger, sans Docker Desktop (apt install docker)"},
+		"req":    {runReq, "req <fichier.http> | req nouveau", "Teste des requêtes HTTP (GET, POST...) décrites dans un fichier"},
 		"sudo":   {runSudo, "sudo <commande>", "Lance une commande en administrateur"},
 		"ls":     {runLs, "ls [-a] [-l] [-h] [chemin...]", "Liste un dossier"},
 		"cd":     {runCd, "cd [dossier | - | ~]", "Change de dossier (accepte /c/Users/...)"},
@@ -94,6 +96,8 @@ func runApt(s *Shell, args []string) int { return apt.Run(args) }
 
 func runDocker(s *Shell, args []string) int { return docker.Run(args) }
 
+func runReq(s *Shell, args []string) int { return req.Run(args, s.out) }
+
 func runSudo(s *Shell, args []string) int {
 	if len(args) == 0 {
 		s.errorf("usage : sudo <commande>")
@@ -129,6 +133,8 @@ func needsAdmin(args []string) bool {
 		return false
 	case "docker", "docker-compose":
 		return false // le moteur tourne dans WSL : pas besoin des droits admin Windows
+	case "req":
+		return false
 	}
 	return true
 }

@@ -40,6 +40,13 @@ func (s *Shell) complete(line []rune, pos int) (int, []string) {
 		} else {
 			cands, filtered = pathCandidates(cur, false), false
 		}
+	case strings.EqualFold(words[0], "req") && len(words) == 1:
+		// sous-commandes, méthodes et fichiers .http
+		cands = append(filterPrefix([]string{"nouveau", "liste", "aide", "GET", "POST", "PUT", "PATCH", "DELETE"}, cur, nil),
+			httpFiles(pathCandidates(cur, false))...)
+		filtered = false
+	case strings.EqualFold(words[0], "req") && strings.EqualFold(words[1], "liste") && len(words) == 2:
+		cands, filtered = httpFiles(pathCandidates(cur, false)), false
 	case strings.EqualFold(words[0], "cd") || strings.EqualFold(words[0], "rmdir"):
 		cands, filtered = pathCandidates(cur, true), false
 	default:
@@ -49,6 +56,18 @@ func (s *Shell) complete(line []rune, pos int) (int, []string) {
 		cands = filterPrefix(cands, cur, words)
 	}
 	return start, cands
+}
+
+// httpFiles garde les dossiers et les fichiers .http / .rest.
+func httpFiles(paths []string) []string {
+	var out []string
+	for _, p := range paths {
+		low := strings.ToLower(p)
+		if strings.HasSuffix(p, "/") || strings.HasSuffix(low, ".http") || strings.HasSuffix(low, ".rest") {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func isApt(w string) bool { return strings.EqualFold(w, "apt") || strings.EqualFold(w, "apt-get") }
