@@ -29,6 +29,27 @@ et leur dossier est ajouté à ton PATH. `apt upgrade` les met à jour, `apt rem
 | `build-essential`, `buildtools`, `msvc`, `visual-studio-build-tools`, `visualcpp-build-tools`, `vs-buildtools` | Compilateur C/C++ MSVC : `Microsoft.VisualStudio.BuildTools` avec la charge de travail « Développement Desktop en C++ » et les bibliothèques Spectre-mitigated | winget | |
 | `msvc-spectre`, `spectre`, `spectre-libs`, `vc-spectre` | Bibliothèques Spectre-mitigated, ajoutées à un MSVC déjà installé | installeur de Visual Studio, en ligne de commande | MSVC (sinon installé avec) |
 
+## Fournis avec un autre logiciel
+
+Ces outils ne s'installent pas seuls : `apt install` installe le logiciel qui les fournit, `apt remove` refuse (pour ne pas désinstaller tout le logiciel), et `apt upgrade` les met à jour par leur propre commande quand elle existe.
+
+| Outil | Fourni avec | apt upgrade lance |
+|---|---|---|
+| `cargo` | Rust (rustup) (`apt install rust`) | `rustup update` |
+| `clang-format` | LLVM (`apt install llvm`) | la mise à jour de `llvm` |
+| `corepack` | Node.js (`apt install node`) | la mise à jour de `node` |
+| `dot` | Graphviz (`apt install graphviz`) | la mise à jour de `graphviz` |
+| `g++` | GCC (WinLibs) (`apt install gcc`) | la mise à jour de `gcc` |
+| `gdb` | GCC (WinLibs) (`apt install gcc`) | la mise à jour de `gcc` |
+| `javac` | le JDK (`apt install java`) | la mise à jour de `java` |
+| `lld` | LLVM (`apt install llvm`) | la mise à jour de `llvm` |
+| `npm` | Node.js (`apt install node`) | `npm install --global npm@latest` |
+| `npx` | Node.js (`apt install node`) | la mise à jour de `node` |
+| `pip` | Python (`apt install python`) | `python -m pip install --upgrade pip` |
+| `pip3` | Python (`apt install python`) | `python -m pip install --upgrade pip` |
+| `python3-pip` | Python (`apt install python`) | `python -m pip install --upgrade pip` |
+| `rustc` | Rust (rustup) (`apt install rust`) | `rustup update` |
+
 ## Déjà dans Windows
 
 Pour ces paquets, `apt` explique l'équivalent au lieu d'installer autre chose.

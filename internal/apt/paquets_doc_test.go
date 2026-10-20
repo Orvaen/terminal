@@ -89,6 +89,24 @@ et leur dossier est ajouté à ton PATH. `+"`apt upgrade`"+` les met à jour, `+
 	sort.Slice(sp, func(i, j int) bool { return sp[i] == "msvc-spectre" || (sp[j] != "msvc-spectre" && sp[i] < sp[j]) })
 	fmt.Fprintf(&b, "| %s | Bibliothèques Spectre-mitigated, ajoutées à un MSVC déjà installé | installeur de Visual Studio, en ligne de commande | MSVC (sinon installé avec) |\n", code(sp))
 
+	b.WriteString("\n## Fournis avec un autre logiciel\n\n" +
+		"Ces outils ne s'installent pas seuls : `apt install` installe le logiciel qui les fournit, `apt remove` " +
+		"refuse (pour ne pas désinstaller tout le logiciel), et `apt upgrade` les met à jour par leur propre commande " +
+		"quand elle existe.\n\n| Outil | Fourni avec | apt upgrade lance |\n|---|---|---|\n")
+	var comps []string
+	for n := range components {
+		comps = append(comps, n)
+	}
+	sort.Strings(comps)
+	for _, n := range comps {
+		c := components[n]
+		up := "la mise à jour de `" + c.Provider + "`"
+		if c.Upgrade != nil {
+			up = "`" + strings.Join(c.Upgrade, " ") + "`"
+		}
+		fmt.Fprintf(&b, "| `%s` | %s (`apt install %s`) | %s |\n", n, c.Label, c.Provider, up)
+	}
+
 	b.WriteString("\n## Déjà dans Windows\n\nPour ces paquets, `apt` explique l'équivalent au lieu d'installer autre chose.\n\n| Nom | Ce qu'apt répond |\n|---|---|\n")
 	var notes []string
 	for n := range windowsNotes {

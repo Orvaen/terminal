@@ -165,28 +165,47 @@ func cmdUpgrade(pkgs []string) int {
 		}
 		return code
 	}
-	return forEach(pkgs, "Mise à jour de", func(p string) int {
-		if isDocker(p) {
-			return dockerUpgrade()
+	return forEach(pkgs, "Mise à jour de", upgradeOne)
+}
+
+// upgradeOne met à jour un logiciel désigné par son nom.
+func upgradeOne(p string) int {
+	if isDocker(p) {
+		return dockerUpgrade()
+	}
+	if isSelf(p) {
+		return selfUpdate(false)
+	}
+	if t, ok := findExtTool(p); ok {
+		return installExt(t, true)
+	}
+	if c, ok := findComponent(p); ok {
+		return upgradeComponent(p, c, upgradeOne)
+	}
+	if isNode(p) {
+		if code, handled := upgradeNode(false); handled {
+			return code
 		}
-		if isSelf(p) {
-			return selfUpdate(false)
+	}
+	targets := [][]string{target(p)}
+	if ids := installedTargets(p); ids != nil {
+		targets = nil
+		for _, id := range ids {
+			targets = append(targets, exactTarget(id))
 		}
-		if t, ok := findExtTool(p); ok {
-			return installExt(t, true)
-		}
-		if isNode(p) {
-			if code, handled := upgradeNode(false); handled {
-				return code
-			}
-		}
-		code := winget(append(append([]string{"upgrade"}, target(p)...), acceptSource, acceptPackage)...)
+	}
+	result := 0
+	for _, t := range targets {
+		code := winget(append(append([]string{"upgrade"}, t...), acceptSource, acceptPackage)...)
 		if isNotApplicable(code) {
 			ui.Info(p + " est déjà à jour.")
-			return 0
+			code = 0
 		}
-		return code
-	})
+		if code != 0 && result == 0 {
+			result = code
+		}
+	}
+	return result
 }
 
 func cmdFullUpgrade() int {
@@ -214,6 +233,10 @@ func cmdInstall(pkgs []string, yes bool) int {
 	return forEach(pkgs, "Installation de", func(p string) int {
 		if isDocker(p) {
 			return dockerInstall(Elevate)
+		}
+		if c, ok := findComponent(p); ok {
+			ui.Info(fmt.Sprintf("%s est fourni avec %s : installation de %s.", p, c.Label, c.Label))
+			p = c.Provider
 		}
 		if t, ok := findExtTool(p); ok {
 			return installExt(t, false)
@@ -272,7 +295,23 @@ func cmdRemove(pkgs []string, yes bool) int {
 		if t, ok := findExtTool(p); ok {
 			return removeExt(t)
 		}
-		return winget(append(append([]string{"uninstall"}, target(p)...), acceptSource)...)
+		if c, ok := findComponent(p); ok {
+			return removeComponent(p, c)
+		}
+		ids := installedTargets(p)
+		switch {
+		case ids == nil:
+			return winget(append(append([]string{"uninstall"}, target(p)...), acceptSource)...)
+		case len(ids) > 1:
+			ui.Errorf("plusieurs versions de %s sont installées : %s", p, strings.Join(ids, ", "))
+			ui.Info("Précise laquelle retirer : apt remove " + ids[0])
+			return 1
+		}
+		code := winget(append(append([]string{"uninstall"}, exactTarget(ids[0])...), acceptSource)...)
+		if isNoPackageFound(code) {
+			ui.Info(p + " n'est pas installé (la liste : apt list).")
+		}
+		return code
 	})
 }
 

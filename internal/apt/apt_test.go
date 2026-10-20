@@ -13,7 +13,9 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 	var calls [][]string
 	oldW, oldA, oldOut := winget, wingetAvailable, stdout
 	oldSU, oldSC := selfUpdate, selfCheck
-	oldLines := wingetLines
+	oldLines, oldExport, oldRunTool := wingetLines, exportInstalled, runTool
+	exportInstalled = func() ([]string, error) { return nil, nil } // jamais le vrai winget export (CI Windows)
+	runTool = func(args []string) int { calls = append(calls, append([]string{"tool:"}, args...)); return 0 }
 	wingetLines = func(args []string, onLine func(string)) (string, int) {
 		calls = append(calls, args)
 		for _, a := range args {
@@ -49,7 +51,7 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 	t.Cleanup(func() {
 		winget, wingetAvailable, stdout = oldW, oldA, oldOut
 		selfUpdate, selfCheck = oldSU, oldSC
-		wingetLines = oldLines
+		wingetLines, exportInstalled, runTool = oldLines, oldExport, oldRunTool
 		wingetSearchOutput, userAliasPath, interactive = oldSearch, oldAliasPath, oldInter
 		toolsRoot, vswhere, runVSInstaller = oldTools, oldVswhere, oldVSI
 	})

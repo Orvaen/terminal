@@ -220,6 +220,14 @@ projet qui active la protection (VS Code et ses modules natifs, par exemple) éc
 pour un MSVC installé autrement, `apt install msvc-spectre` les ajoute. Et si `npm ci` échoue avec MSB8040
 pendant `apt deps install`, `apt` l'explique, installe les bibliothèques et relance l'étape tout seul.
 
+Certains outils sont **fournis avec un autre logiciel** : `pip` avec Python, `npm` avec Node.js, `cargo` avec Rust,
+`g++` avec GCC. `apt install pip` installe Python ; `apt remove pip` refuse, pour ne pas désinstaller Python en entier ;
+`apt upgrade pip` lance `python -m pip install --upgrade pip` (et `npm install --global npm@latest`, `rustup update`).
+
+`apt remove` et `apt upgrade` visent la **version installée** : la table indique Python 3.14, mais si tu as Python
+3.12, `apt remove python` retire bien Python 3.12. Si plusieurs versions sont installées, `apt remove` te demande
+de préciser laquelle, et `apt upgrade` les met toutes à jour.
+
 Certains paquets Linux n'ont rien à installer sous Windows (`ssh`, `tree`, `tar`, `zip`…) : `apt` l'explique au lieu
 d'installer autre chose.
 
