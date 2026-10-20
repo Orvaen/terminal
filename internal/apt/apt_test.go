@@ -107,3 +107,37 @@ func TestMissingWinget(t *testing.T) {
 		t.Fatalf("code %d, attendu 1", code)
 	}
 }
+
+func TestDockerBypassesWinget(t *testing.T) {
+	calls := fakeWinget(t, nil)
+	var log []string
+	oldI, oldU, oldG, oldD := dockerInstall, dockerUninstall, dockerUpgrade, dockerInstalled
+	dockerInstall = func(func(...string) int) int { log = append(log, "install"); return 0 }
+	dockerUninstall = func(yes bool) int {
+		if yes {
+			log = append(log, "remove -y")
+		} else {
+			log = append(log, "remove")
+		}
+		return 0
+	}
+	dockerUpgrade = func() int { log = append(log, "upgrade"); return 0 }
+	dockerInstalled = func() bool { return true }
+	t.Cleanup(func() { dockerInstall, dockerUninstall, dockerUpgrade, dockerInstalled = oldI, oldU, oldG, oldD })
+
+	Run([]string{"install", "docker", "git"})
+	Run([]string{"remove", "docker", "-y"})
+	Run([]string{"upgrade", "docker"})
+	Run([]string{"upgrade"})
+
+	if want := []string{"install", "remove -y", "upgrade", "upgrade"}; !reflect.DeepEqual(log, want) {
+		t.Fatalf("appels docker %v, attendu %v", log, want)
+	}
+	wantWinget := [][]string{
+		{"install", "--id", "Git.Git", "--exact", acceptSource, acceptPackage},
+		{"upgrade", "--all", acceptSource, acceptPackage},
+	}
+	if !reflect.DeepEqual(*calls, wantWinget) {
+		t.Fatalf("appels winget %v, attendu %v", *calls, wantWinget)
+	}
+}

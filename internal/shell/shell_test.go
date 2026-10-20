@@ -203,6 +203,9 @@ func TestNeedsAdmin(t *testing.T) {
 	if !needsAdmin([]string{"apt", "full-upgrade"}) {
 		t.Error("apt full-upgrade doit demander les droits admin")
 	}
+	if needsAdmin([]string{"docker", "ps"}) {
+		t.Error("docker ne doit pas demander les droits admin")
+	}
 	if !needsAdmin([]string{"notepad", "hosts"}) {
 		t.Error("une commande quelconque doit être élevée")
 	}

@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Orvaen/terminal/internal/apt"
+	"github.com/Orvaen/terminal/internal/docker"
 	"github.com/Orvaen/terminal/internal/platform"
 	"github.com/Orvaen/terminal/internal/ui"
 )
@@ -30,7 +31,7 @@ var builtins map[string]builtin
 
 // Ordre d'affichage dans « help ».
 var builtinOrder = []string{
-	"apt", "sudo",
+	"apt", "sudo", "docker",
 	"ls", "cd", "pwd", "cat", "touch", "mkdir", "rm", "rmdir", "cp", "mv",
 	"echo", "clear", "which", "export", "unset", "env", "open", "help", "exit",
 }
@@ -38,6 +39,7 @@ var builtinOrder = []string{
 func init() {
 	builtins = map[string]builtin{
 		"apt":    {runApt, "apt <commande> [paquets]", "Gestion des logiciels (winget) et mises à jour Windows"},
+		"docker": {runDocker, "docker <commande>", "Docker léger, sans Docker Desktop (apt install docker)"},
 		"sudo":   {runSudo, "sudo <commande>", "Lance une commande en administrateur"},
 		"ls":     {runLs, "ls [-a] [-l] [-h] [chemin...]", "Liste un dossier"},
 		"cd":     {runCd, "cd [dossier | - | ~]", "Change de dossier (accepte /c/Users/...)"},
@@ -60,6 +62,7 @@ func init() {
 		"exit":   {runExit, "exit [code]", "Quitte le terminal"},
 	}
 	builtins["apt-get"] = builtins["apt"]
+	builtins["docker-compose"] = builtin{func(s *Shell, a []string) int { return runDocker(s, append([]string{"compose"}, a...)) }, "", ""}
 	builtins["ll"] = builtin{func(s *Shell, a []string) int { return runLs(s, append([]string{"-l"}, a...)) }, "", ""}
 }
 
@@ -88,6 +91,8 @@ func parseFlags(cmd string, args []string, allowed string) (map[rune]bool, []str
 }
 
 func runApt(s *Shell, args []string) int { return apt.Run(args) }
+
+func runDocker(s *Shell, args []string) int { return docker.Run(args) }
 
 func runSudo(s *Shell, args []string) int {
 	if len(args) == 0 {
@@ -122,6 +127,8 @@ func needsAdmin(args []string) bool {
 			}
 		}
 		return false
+	case "docker", "docker-compose":
+		return false // le moteur tourne dans WSL : pas besoin des droits admin Windows
 	}
 	return true
 }
@@ -745,7 +752,7 @@ func runHelp(s *Shell, args []string) int {
 		fmt.Fprintf(s.out, "  %-36s %s\n", b.usage, b.help)
 	}
 	fmt.Fprint(s.out, `
-Aussi : apt-get (= apt), ll (= ls -l).
+Aussi : apt-get (= apt), docker-compose (= docker compose), ll (= ls -l).
 Enchaîne avec  &&  ||  ;   — les tubes ( | ) et redirections ( > ) passent par PowerShell.
 Tout le reste est lancé tel quel : programmes Windows (git, code, notepad...)
 et commandes PowerShell (dir, Get-Process...).

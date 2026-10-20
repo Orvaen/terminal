@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Orvaen/terminal/internal/docker"
 	"github.com/Orvaen/terminal/internal/platform"
 	"github.com/Orvaen/terminal/internal/ui"
 )
@@ -19,6 +20,23 @@ var stdout io.Writer = os.Stdout
 // Elevate relance « apt <args> » en administrateur. Le shell terminal.exe la remplace,
 // car son exécutable n'est pas apt.exe.
 var Elevate = func(args ...string) int { return platform.RunSelfElevated(args...) }
+
+// « docker » ne passe pas par winget : c'est le Docker léger (Alpine + Docker Engine dans WSL2).
+// Points d'injection, remplacés dans les tests.
+var (
+	dockerInstall   = docker.Install
+	dockerUninstall = docker.Uninstall
+	dockerUpgrade   = docker.Upgrade
+	dockerInstalled = func() bool { return docker.Installed() }
+)
+
+func isDocker(name string) bool {
+	switch strings.ToLower(name) {
+	case "docker", "docker-engine", "docker.io", "docker-ce":
+		return true
+	}
+	return false
+}
 
 // Run exécute apt avec les arguments donnés et renvoie le code de sortie.
 func Run(args []string) int {
@@ -33,6 +51,12 @@ func Run(args []string) int {
 		return 0
 	case "windows-update":
 		return windowsUpdate(inv.Pause)
+	case "wsl-setup": // usage interne : activation de WSL2 dans une fenêtre admin
+		code := docker.SetupWSL()
+		if inv.Pause {
+			waitForEnter()
+		}
+		return code
 	case "autoremove", "clean", "autoclean":
 		ui.Info("Rien à faire sous Windows : winget ne garde ni cache ni dépendances orphelines.")
 		return 0
@@ -53,7 +77,7 @@ func Run(args []string) int {
 	case "install":
 		return cmdInstall(inv.Packages)
 	case "remove", "purge", "uninstall":
-		return cmdRemove(inv.Packages)
+		return cmdRemove(inv.Packages, inv.Yes)
 	case "search":
 		return cmdSearch(inv.Packages)
 	case "show":
@@ -82,11 +106,19 @@ func cmdUpgrade(pkgs []string) int {
 		code := winget("upgrade", "--all", acceptSource, acceptPackage)
 		if isNotApplicable(code) {
 			ui.Info("Tout est déjà à jour.")
-			return 0
+			code = 0
+		}
+		if dockerInstalled() {
+			if dc := dockerUpgrade(); code == 0 {
+				code = dc
+			}
 		}
 		return code
 	}
 	return forEach(pkgs, "Mise à jour de", func(p string) int {
+		if isDocker(p) {
+			return dockerUpgrade()
+		}
 		code := winget(append(append([]string{"upgrade"}, target(p)...), acceptSource, acceptPackage)...)
 		if isNotApplicable(code) {
 			ui.Info(p + " est déjà à jour.")
@@ -119,16 +151,22 @@ func cmdInstall(pkgs []string) int {
 		return 1
 	}
 	return forEach(pkgs, "Installation de", func(p string) int {
+		if isDocker(p) {
+			return dockerInstall(Elevate)
+		}
 		return winget(append(append([]string{"install"}, target(p)...), acceptSource, acceptPackage)...)
 	})
 }
 
-func cmdRemove(pkgs []string) int {
+func cmdRemove(pkgs []string, yes bool) int {
 	if len(pkgs) == 0 {
 		ui.Errorf("précise au moins un paquet : apt remove <nom>")
 		return 1
 	}
 	return forEach(pkgs, "Désinstallation de", func(p string) int {
+		if isDocker(p) {
+			return dockerUninstall(yes)
+		}
 		return winget(append(append([]string{"uninstall"}, target(p)...), acceptSource)...)
 	})
 }
@@ -196,7 +234,10 @@ Commandes :
   windows-update       Installe uniquement les mises à jour Windows (admin)
   version              Affiche la version
 
-Noms courts reconnus : %s
+Docker léger : « apt install docker » installe Docker Engine dans une mini machine
+Alpine Linux (WSL2), sans Docker Desktop. Moteur : « docker engine status|stop ».
+
+Noms courts reconnus : docker, %s
 Les autres noms sont transmis à winget (ex : apt install Spotify.Spotify).
 `, Version, strings.Join(AliasNames(), ", "))
 }

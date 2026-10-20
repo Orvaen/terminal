@@ -1,4 +1,4 @@
-﻿# Installe Orvaen Terminal (terminal.exe) et apt.exe pour l'utilisateur courant :
+﻿# Installe Orvaen Terminal (terminal.exe), apt.exe et docker.exe pour l'utilisateur courant :
 #  - copie dans %LOCALAPPDATA%\Programs\apt-windows et ajout au PATH
 #  - raccourcis dans le menu Démarrer et sur le Bureau
 #  - profil dans Windows Terminal
@@ -6,9 +6,10 @@
 $ErrorActionPreference = 'Stop'
 $AppName = 'Orvaen Terminal'
 
-$aptSrc  = Join-Path $PSScriptRoot 'apt.exe'
-$termSrc = Join-Path $PSScriptRoot 'terminal.exe'
-foreach ($f in $aptSrc, $termSrc) {
+$aptSrc    = Join-Path $PSScriptRoot 'apt.exe'
+$termSrc   = Join-Path $PSScriptRoot 'terminal.exe'
+$dockerSrc = Join-Path $PSScriptRoot 'docker.exe'
+foreach ($f in $aptSrc, $termSrc, $dockerSrc) {
     if (-not (Test-Path $f)) {
         throw "$(Split-Path $f -Leaf) est introuvable à côté de install.ps1. Lance build.ps1 ou télécharge une release (voir README)."
     }
@@ -21,7 +22,16 @@ $termExe = Join-Path $dest 'terminal.exe'
 Copy-Item $aptSrc  (Join-Path $dest 'apt.exe') -Force
 Copy-Item $aptSrc  (Join-Path $dest 'apt-get.exe') -Force
 Copy-Item $termSrc $termExe -Force
+Copy-Item $dockerSrc (Join-Path $dest 'docker.exe') -Force
 Write-Host "Copié dans $dest"
+
+# Docker Desktop installé ? Son docker.exe passe avant le nôtre dans PowerShell et cmd
+# (dans Orvaen Terminal, c'est toujours le Docker léger qui répond).
+$desktopDocker = Join-Path $env:ProgramFiles 'Docker\Docker\resources\bin\docker.exe'
+if (Test-Path $desktopDocker) {
+    Write-Host 'Remarque : Docker Desktop est installé. Hors Orvaen Terminal, « docker » utilisera Docker Desktop.'
+    Write-Host '           Pour ne garder que la version légère :  apt remove docker-desktop'
+}
 
 # 2. PATH utilisateur (avec réparation d'une entrée collée par l'ancienne version de l'installeur)
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
