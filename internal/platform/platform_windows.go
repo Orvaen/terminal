@@ -227,3 +227,42 @@ func expandPercent(s string) string {
 		s = s[:i] + os.Getenv(name) + s[i+2+j:]
 	}
 }
+
+var (
+	procGetConsoleCP       = kernel32.NewProc("GetConsoleCP")
+	procSetConsoleCP       = kernel32.NewProc("SetConsoleCP")
+	procGetConsoleOutputCP = kernel32.NewProc("GetConsoleOutputCP")
+	procSetConsoleOutputCP = kernel32.NewProc("SetConsoleOutputCP")
+)
+
+const cpUTF8 = 65001
+
+// EnableUTF8Console passe la console en UTF-8 (page de code 65001), pour que les programmes
+// lancés (winget, git, node, Coreutils…) affichent correctement les accents : sans ça, la console
+// garde la page de code OEM (850, 437…) et « à » s'affiche « ├á ».
+// Renvoie la fonction qui rétablit les pages de code d'origine, à appeler avant de quitter.
+func EnableUTF8Console() (restore func()) {
+	noop := func() {}
+	if os.Getenv("ORVAEN_NO_UTF8") != "" {
+		return noop
+	}
+	in, _, _ := procGetConsoleCP.Call()
+	out, _, _ := procGetConsoleOutputCP.Call()
+	if in == 0 && out == 0 {
+		return noop // pas de console (sortie redirigée, service…)
+	}
+	if out != cpUTF8 {
+		procSetConsoleOutputCP.Call(cpUTF8)
+	}
+	if in != 0 && in != cpUTF8 {
+		procSetConsoleCP.Call(cpUTF8)
+	}
+	return func() {
+		if out != 0 && out != cpUTF8 {
+			procSetConsoleOutputCP.Call(out)
+		}
+		if in != 0 && in != cpUTF8 {
+			procSetConsoleCP.Call(in)
+		}
+	}
+}

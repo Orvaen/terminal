@@ -41,3 +41,6 @@ func KillTree(p *os.Process) error { return p.Kill() }
 
 // RegistryPathDirs : hors Windows, pas de registre.
 func RegistryPathDirs() []string { return nil }
+
+// EnableUTF8Console : les terminaux Unix sont déjà en UTF-8.
+func EnableUTF8Console() (restore func()) { return func() {} }

@@ -14,12 +14,22 @@ import (
 	"strings"
 
 	"github.com/Orvaen/terminal/internal/apt"
+	"github.com/Orvaen/terminal/internal/platform"
 	"github.com/Orvaen/terminal/internal/setup"
 	"github.com/Orvaen/terminal/internal/shell"
 	"github.com/Orvaen/terminal/internal/update"
 )
 
 func main() {
+	// Console en UTF-8 : les accents de winget, git, node, Coreutils… s'affichent correctement.
+	// Les pages de code d'origine sont rétablies en quittant (utile avec terminal -c depuis PowerShell).
+	restore := platform.EnableUTF8Console()
+	code := run()
+	restore()
+	os.Exit(code)
+}
+
+func run() int {
 	var (
 		line    string
 		hasLine bool
@@ -50,17 +60,17 @@ func main() {
 			exe, err := os.Executable()
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
+				return 1
 			}
-			os.Exit(setup.VSCode(exe, os.Stdout))
+			return setup.VSCode(exe, os.Stdout)
 		case "--update":
-			os.Exit(update.Run(apt.Version, false))
+			return update.Run(apt.Version, false)
 		case "--version", "-v":
 			fmt.Printf("%s %s\n", shell.AppName, apt.Version)
-			return
+			return 0
 		case "--help", "-h":
 			fmt.Println("Usage : terminal [-c \"commande\"] [--update] [--version]")
-			return
+			return 0
 		}
 	}
 
@@ -76,5 +86,5 @@ func main() {
 		fmt.Print("\nAppuie sur Entrée pour fermer cette fenêtre.")
 		_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
 	}
-	os.Exit(code)
+	return code
 }

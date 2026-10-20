@@ -109,6 +109,8 @@ Mise à jour : r43 est disponible, tape apt upgrade terminal (ce qui tourne n'es
 | Symptôme | Solution |
 |---|---|
 | `apt : Le terme « apt » n'est pas reconnu` | Ouvre une nouvelle fenêtre, ou utilise le terminal où `apt` est intégré |
+| Accents illisibles (`├á` au lieu de `à`) | Mets le terminal à jour : il passe la console en UTF-8. Pour garder la page de code de Windows : `ORVAEN_NO_UTF8=1` |
+| `apt upgrade terminal` affiche « Mise à jour de terminal » puis passe par winget | Ta version date d'avant la mise à jour à chaud : recompile-la une dernière fois (`git pull` puis `build.ps1`) |
 | `winget est introuvable` | Installe **App Installer** depuis le Microsoft Store |
 | `build.ps1` ne trouve pas `go` | Installe Go, puis ouvre une nouvelle fenêtre |
 | Le script est bloqué par la stratégie d'exécution | Lance-le avec `powershell -ExecutionPolicy Bypass -File …` comme ci-dessus |
