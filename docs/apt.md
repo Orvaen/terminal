@@ -34,6 +34,7 @@ Les noms courts habituels sont traduits en identifiants winget exacts :
 |---|---|
 | `git` | `Git.Git` |
 | `node`, `nodejs` | `OpenJS.NodeJS.LTS` |
+| `node-current` | `OpenJS.NodeJS` (version « Current », hors LTS) |
 | `python`, `python3` | `Python.Python.3.12` |
 | `vscode`, `code` | `Microsoft.VisualStudioCode` |
 | `go`, `golang` | `GoLang.Go` |
@@ -55,6 +56,22 @@ $ apt install Spotify.Spotify
 ```
 
 La liste est définie dans [`internal/apt/aliases.go`](../internal/apt/aliases.go).
+
+## Sources officielles
+
+Le catalogue winget est tenu par la communauté et peut avoir quelques jours de retard sur les éditeurs.
+Pour **Node.js**, `apt` compare donc aussi ta version avec [nodejs.org](https://nodejs.org) :
+
+- `apt update` et `apt list --upgradable` signalent une version plus récente, même si winget ne la connaît pas encore ;
+- `apt upgrade` (ou `apt upgrade node`) l'installe directement depuis nodejs.org, après vérification de sa somme SHA-256 ;
+- `apt` reste sur ta version majeure (par exemple 24.x) : une nouvelle majeure (26.x) est signalée, jamais installée
+  sans que tu le demandes.
+
+```text
+==> Depuis les sources officielles
+node  v24.20.0 → v24.22.0  (nodejs.org)  : apt upgrade node
+node  v26.12.0 Current disponible (hors LTS) : apt install node-current
+```
 
 ## Droits administrateur
 

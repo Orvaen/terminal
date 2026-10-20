@@ -23,6 +23,7 @@ var aliases = map[string]string{
 	"neovim":         "Neovim.Neovim",
 	"nvim":           "Neovim.Neovim",
 	"node":           "OpenJS.NodeJS.LTS",
+	"node-current":   "OpenJS.NodeJS",
 	"nodejs":         "OpenJS.NodeJS.LTS",
 	"pwsh":           "Microsoft.PowerShell",
 	"python":         "Python.Python.3.12",

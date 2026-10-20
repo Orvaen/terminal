@@ -97,7 +97,9 @@ func cmdUpdate() int {
 		return code
 	}
 	ui.Step("Logiciels pouvant être mis à jour")
-	return winget("upgrade", acceptSource)
+	code := winget("upgrade", acceptSource)
+	reportOfficial()
+	return code
 }
 
 func cmdUpgrade(pkgs []string) int {
@@ -107,6 +109,10 @@ func cmdUpgrade(pkgs []string) int {
 		if isNotApplicable(code) {
 			ui.Info("Tout est déjà à jour.")
 			code = 0
+		}
+		// winget peut avoir quelques jours de retard : on complète avec les sources officielles
+		if nc, handled := upgradeNode(true); handled && code == 0 {
+			code = nc
 		}
 		if dockerInstalled() {
 			if dc := dockerUpgrade(); code == 0 {
@@ -118,6 +124,11 @@ func cmdUpgrade(pkgs []string) int {
 	return forEach(pkgs, "Mise à jour de", func(p string) int {
 		if isDocker(p) {
 			return dockerUpgrade()
+		}
+		if isNode(p) {
+			if code, handled := upgradeNode(false); handled {
+				return code
+			}
 		}
 		code := winget(append(append([]string{"upgrade"}, target(p)...), acceptSource, acceptPackage)...)
 		if isNotApplicable(code) {
@@ -189,7 +200,9 @@ func cmdShow(pkgs []string) int {
 
 func cmdList(inv Invocation) int {
 	if inv.Upgradable {
-		return winget("upgrade", acceptSource)
+		code := winget("upgrade", acceptSource)
+		reportOfficial()
+		return code
 	}
 	args := []string{"list"}
 	if len(inv.Packages) > 0 {
