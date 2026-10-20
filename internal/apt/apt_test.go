@@ -2,6 +2,7 @@ package apt
 
 import (
 	"io"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -12,6 +13,11 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 	var calls [][]string
 	oldW, oldA, oldOut := winget, wingetAvailable, stdout
 	oldSU, oldSC := selfUpdate, selfCheck
+	oldSearch, oldAliasPath, oldInter := wingetSearchOutput, userAliasPath, interactive
+	aliasFile := filepath.Join(t.TempDir(), "paquets.json")
+	wingetSearchOutput = func(...string) string { return "" }
+	userAliasPath = func() string { return aliasFile }
+	interactive = func() bool { return false }
 	selfUpdate = func(bool) int { calls = append(calls, []string{"self-update"}); return 0 }
 	selfCheck = func() (string, bool) { return "", false }
 	winget = func(args ...string) int {
@@ -28,6 +34,7 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 	t.Cleanup(func() {
 		winget, wingetAvailable, stdout = oldW, oldA, oldOut
 		selfUpdate, selfCheck = oldSU, oldSC
+		wingetSearchOutput, userAliasPath, interactive = oldSearch, oldAliasPath, oldInter
 	})
 	return &calls
 }
@@ -63,8 +70,8 @@ func TestInstallUnknownNameIsPassedThrough(t *testing.T) {
 }
 
 func TestInstallContinuesAfterFailure(t *testing.T) {
-	calls := fakeWinget(t, map[string]int{"broken": 5})
-	code := Run([]string{"install", "broken", "git"})
+	calls := fakeWinget(t, map[string]int{"Broken.Pkg": 5})
+	code := Run([]string{"install", "Broken.Pkg", "git"})
 	if code != 5 {
 		t.Fatalf("code %d, attendu 5", code)
 	}
@@ -156,7 +163,7 @@ func TestInstalledNamesFromWingetExport(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := namesFromIDs(ids, true)
-	want := []string{"git", "node", "nodejs", "docker", "Git.Git", "OpenJS.NodeJS.LTS", "Spotify.Spotify"}
+	want := []string{"git", "node", "spotify", "docker", "Git.Git", "OpenJS.NodeJS.LTS", "Spotify.Spotify"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("obtenu %q\nattendu %q", got, want)
 	}

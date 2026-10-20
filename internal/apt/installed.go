@@ -17,7 +17,7 @@ import (
 // Subcommands : les sous-commandes d'apt, dans l'ordre d'usage.
 var Subcommands = []string{
 	"update", "upgrade", "full-upgrade", "dist-upgrade", "install", "remove", "purge",
-	"search", "show", "list", "windows-update", "autoremove", "clean", "help", "version",
+	"search", "show", "list", "windows-update", "alias", "autoremove", "clean", "help", "version",
 }
 
 // PackageSubcommand indique si la sous-commande attend des logiciels installés (true)
@@ -32,9 +32,14 @@ func PackageSubcommand(sub string) (installed bool, ok bool) {
 	return false, false
 }
 
-// InstallableNames : noms courts connus (alias) et docker.
+// InstallableNames : tes noms, les noms connus (alias) et docker.
 func InstallableNames() []string {
-	return append([]string{"docker"}, AliasNames()...)
+	names := []string{"docker"}
+	for n := range loadUserAliases() {
+		names = append(names, n)
+	}
+	sort.Strings(names[1:])
+	return append(names, AliasNames()...)
 }
 
 const installedTTL = 5 * time.Minute
@@ -110,11 +115,17 @@ func namesFromIDs(ids []string, docker bool) []string {
 	for _, id := range ids {
 		installed[strings.ToLower(id)] = true
 	}
-	for _, alias := range AliasNames() {
-		if id, _ := Resolve(alias); installed[strings.ToLower(id)] {
-			add(alias)
+	for id, name := range primaryName {
+		if installed[strings.ToLower(id)] {
+			add(name)
 		}
 	}
+	for name := range loadUserAliases() {
+		if id, _ := Resolve(name); installed[strings.ToLower(id)] {
+			add(name)
+		}
+	}
+	sort.Strings(names)
 	if docker {
 		add("docker")
 	}

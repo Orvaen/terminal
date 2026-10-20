@@ -22,6 +22,7 @@ et `apt.exe` permet de l'utiliser aussi depuis PowerShell ou cmd.
 | `apt list` | Liste les logiciels installés |
 | `apt list --upgradable` | Liste ceux qui ont une mise à jour |
 | `apt windows-update` | Installe uniquement les mises à jour Windows (administrateur) |
+| `apt alias [nom identifiant]` | Tes noms de paquets, voir [plus bas](#tes-noms--apt-alias) |
 | `apt help`, `apt version` | Aide, version |
 
 `apt-get` est un synonyme d'`apt`. L'option `-y` est acceptée : les accords de licence sont acceptés automatiquement.
@@ -29,35 +30,67 @@ et `apt.exe` permet de l'utiliser aussi depuis PowerShell ou cmd.
 
 ## Noms de paquets
 
-Les noms courts habituels sont traduits en identifiants winget exacts :
+Un même logiciel ne porte pas le même nom partout : VS Code s'appelle `code` sous Ubuntu,
+`visual-studio-code` dans Homebrew et `Microsoft.VisualStudioCode` dans winget. `apt` accepte les noms Linux
+et trouve le bon logiciel, dans cet ordre :
 
-| Nom | Identifiant winget |
+| Étape | Exemple |
 |---|---|
-| `git` | `Git.Git` |
-| `node`, `nodejs` | `OpenJS.NodeJS.LTS` |
-| `node-current` | `OpenJS.NodeJS` (version « Current », hors LTS) |
-| `coreutils` | `Microsoft.Coreutils` : 78 commandes Unix natives, voir [Commandes › Coreutils](commandes.md#coreutils-de-microsoft) |
-| `python`, `python3` | `Python.Python.3.12` |
-| `vscode`, `code` | `Microsoft.VisualStudioCode` |
-| `go`, `golang` | `GoLang.Go` |
-| `rust`, `rustup` | `Rustlang.Rustup` |
-| `gh` | `GitHub.cli` |
-| `pwsh` | `Microsoft.PowerShell` |
-| `neovim`, `nvim` | `Neovim.Neovim` |
-| `chrome`, `firefox` | `Google.Chrome`, `Mozilla.Firefox` |
-| `discord`, `vlc`, `7zip`, `curl` | `Discord.Discord`, `VideoLAN.VLC`, `7zip.7zip`, `cURL.cURL` |
-| `terminal` | `Microsoft.WindowsTerminal` |
-| `docker` | Le [Docker léger](docker.md), sans passer par winget |
-| `docker-desktop` | `Docker.DockerDesktop` |
+| 1. **Tes noms**, créés avec `apt alias` ou retenus après un choix | `apt alias code Microsoft.VisualStudioCode` |
+| 2. **La table des noms connus** : 236 noms Debian, Ubuntu, Arch et Homebrew pour 130 logiciels | `fd-find` → `sharkdp.fd`, `openjdk-21-jdk` → `EclipseAdoptium.Temurin.21.JDK`, `google-chrome-stable` → `Google.Chrome` |
+| 3. **Le nom court déclaré dans winget** (moniker) | `vscode` → `Microsoft.VisualStudioCode` |
+| 4. **La commande fournie** : sous Linux, le paquet porte souvent le nom de sa commande | `mytool` → le logiciel qui installe `mytool.exe` |
+| 5. **Une recherche winget** : un résultat évident est pris directement, sinon tu choisis | voir plus bas |
 
-Tout autre nom est transmis tel quel à winget. Pour trouver l'identifiant exact d'un logiciel :
+`apt` affiche toujours ce qu'il a compris avant d'installer :
 
 ```text
-$ apt search spotify
-$ apt install Spotify.Spotify
+$ apt install fd-find
+==> Installation de fd-find
+fd-find → sharkdp.fd
 ```
 
-La liste est définie dans [`internal/apt/aliases.go`](../internal/apt/aliases.go).
+Quand plusieurs logiciels correspondent, `apt` te les propose, et **retient ton choix** pour la prochaine fois :
+
+```text
+$ apt install thing
+Plusieurs logiciels correspondent à « thing » :
+  1. A.Thing                          Thing A
+  2. B.Thing                          Thing B
+Lequel installer ? [1-2, Entrée pour annuler] 2
+Retenu : « apt install thing » installera B.Thing. Pour changer : apt alias thing <identifiant>
+```
+
+Avec `-y`, ou hors d'une console (script, `run`), `apt` ne devine jamais : il affiche les choix et s'arrête.
+Un identifiant winget complet marche toujours : `apt install Spotify.Spotify`.
+
+### Tes noms : apt alias
+
+| Commande | Effet |
+|---|---|
+| `apt alias` | Liste tes noms |
+| `apt alias <nom> <identifiant>` | `apt install <nom>` installera ce logiciel ; passe avant la table |
+| `apt alias -r <nom>` | Oublie un nom |
+
+Ils sont rangés dans `%APPDATA%\OrvaenTerminal\paquets.json`, que tu peux aussi modifier à la main.
+
+### Déjà dans Windows
+
+Certains paquets Linux n'ont rien à installer sous Windows, ou s'installent autrement. `apt` l'explique au lieu
+d'installer autre chose :
+
+| Paquet | Ce qu'`apt` répond |
+|---|---|
+| `build-essential`, `gcc`, `g++` | Les outils de compilation : `Microsoft.VisualStudio.2022.BuildTools` (MSVC) ou `MSYS2.MSYS2` (gcc) |
+| `openssh-client`, `ssh` | OpenSSH est intégré à Windows |
+| `tree`, `tar` | Intégrés à Windows |
+| `zip`, `unzip` | `tar -a -cf archive.zip dossier` et `tar -xf archive.zip`, intégrés à Windows |
+
+`docker`, `docker.io`, `docker-ce` et `docker-compose` installent le [Docker léger](docker.md), sans passer par winget.
+`python` installe la dernière version de Python (3.14), `java` et `default-jdk` le JDK Temurin 25 (LTS).
+
+La table est dans [`internal/apt/aliases.go`](../internal/apt/aliases.go). Ses identifiants ont été vérifiés dans
+le dépôt des manifestes winget ; si l'un d'eux disparaît de winget, `apt` cherche automatiquement un équivalent.
 
 ## Sources officielles
 

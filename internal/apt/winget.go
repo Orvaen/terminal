@@ -8,8 +8,11 @@ import (
 	"github.com/Orvaen/terminal/internal/ui"
 )
 
-// Code renvoyé par winget quand aucune mise à jour n'est applicable (APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE).
-const wingetUpdateNotApplicable = 0x8A15002B
+// Codes de winget : aucune mise à jour applicable, aucun logiciel trouvé.
+const (
+	wingetUpdateNotApplicable = 0x8A15002B // APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE
+	wingetNoPackageFound      = 0x8A150014 // APPINSTALLER_CLI_ERROR_NO_APPLICATIONS_FOUND
+)
 
 var (
 	acceptSource  = "--accept-source-agreements"
@@ -46,4 +49,8 @@ func target(name string) []string {
 
 func isNotApplicable(code int) bool {
 	return uint32(code) == wingetUpdateNotApplicable
+}
+
+func isNoPackageFound(code int) bool {
+	return uint32(code) == wingetNoPackageFound
 }

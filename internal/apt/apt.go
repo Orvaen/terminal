@@ -58,7 +58,7 @@ func onlySelf(pkgs []string) bool {
 
 func isDocker(name string) bool {
 	switch strings.ToLower(name) {
-	case "docker", "docker-engine", "docker.io", "docker-ce":
+	case "docker", "docker-engine", "docker.io", "docker-ce", "docker-compose", "docker-compose-plugin":
 		return true
 	}
 	return false
@@ -92,6 +92,9 @@ func Run(args []string) int {
 	if inv.Command == "upgrade" && onlySelf(inv.Packages) {
 		return selfUpdate(false)
 	}
+	if inv.Command == "alias" {
+		return cmdAlias(inv.Packages)
+	}
 
 	if !wingetAvailable() {
 		ui.Errorf("winget est introuvable. Installe « App Installer » depuis le Microsoft Store.")
@@ -106,7 +109,7 @@ func Run(args []string) int {
 	case "full-upgrade", "dist-upgrade":
 		return cmdFullUpgrade()
 	case "install":
-		return cmdInstall(inv.Packages)
+		return cmdInstall(inv.Packages, inv.Yes)
 	case "remove", "purge", "uninstall":
 		return cmdRemove(inv.Packages, inv.Yes)
 	case "search":
@@ -207,7 +210,7 @@ func cmdFullUpgrade() int {
 	return wu
 }
 
-func cmdInstall(pkgs []string) int {
+func cmdInstall(pkgs []string, yes bool) int {
 	if len(pkgs) == 0 {
 		ui.Errorf("précise au moins un paquet : apt install <nom>")
 		return 1
@@ -216,8 +219,35 @@ func cmdInstall(pkgs []string) int {
 		if isDocker(p) {
 			return dockerInstall(Elevate)
 		}
-		return winget(append(append([]string{"install"}, target(p)...), acceptSource, acceptPackage)...)
+		if note, ok := windowsNotes[strings.ToLower(p)]; ok {
+			if _, mine := userAlias(p); !mine {
+				ui.Info("Rien à installer : " + note)
+				return 0
+			}
+		}
+		res, ok := resolvePackage(p, yes)
+		if !ok {
+			return 100 // comme apt : paquet introuvable
+		}
+		code := installTarget(p, res)
+		// Un identifiant de la table a pu changer chez winget : on le retrouve autrement.
+		if isNoPackageFound(code) && res.curated {
+			ui.Warn(res.id + " est introuvable dans winget, recherche d'un équivalent…")
+			if res, ok = searchResolution(p, yes); !ok {
+				return 100
+			}
+			code = installTarget(p, res)
+		}
+		return code
 	})
+}
+
+func installTarget(name string, res resolution) int {
+	t := []string{name}
+	if res.id != "" {
+		t = []string{"--id", res.id, "--exact"}
+	}
+	return winget(append(append([]string{"install"}, t...), acceptSource, acceptPackage)...)
 }
 
 func cmdRemove(pkgs []string, yes bool) int {
@@ -246,7 +276,15 @@ func cmdShow(pkgs []string) int {
 		ui.Errorf("précise un paquet : apt show <nom>")
 		return 1
 	}
-	return winget(append(append([]string{"show"}, target(pkgs[0])...), acceptSource)...)
+	res, ok := resolvePackage(pkgs[0], false)
+	if !ok {
+		return 100
+	}
+	t := []string{pkgs[0]}
+	if res.id != "" {
+		t = []string{"--id", res.id, "--exact"}
+	}
+	return winget(append(append([]string{"show"}, t...), acceptSource)...)
 }
 
 func cmdList(inv Invocation) int {
@@ -291,18 +329,21 @@ Commandes :
   upgrade [paquet...]  Met à jour tous les logiciels (ou seulement ceux indiqués)
   upgrade terminal     Met à jour Orvaen Terminal, sans fermer ce qui tourne
   full-upgrade         upgrade + mises à jour Windows (alias : dist-upgrade)
-  install <paquet...>  Installe un ou plusieurs logiciels
+  install <paquet...>  Installe un ou plusieurs logiciels (noms Linux acceptés : code, fd-find…)
   remove <paquet...>   Désinstalle (alias : purge, uninstall)
   search <mot>         Cherche un logiciel
   show <paquet>        Affiche les détails d'un logiciel
   list [--upgradable]  Logiciels installés (ou ceux qui ont une mise à jour)
   windows-update       Installe uniquement les mises à jour Windows (admin)
+  alias [nom id]       Tes noms : apt alias code Microsoft.VisualStudioCode (-r pour oublier)
   version              Affiche la version
 
 Docker léger : « apt install docker » installe Docker Engine dans une mini machine
 Alpine Linux (WSL2), sans Docker Desktop. Moteur : « docker engine status|stop ».
 
-Noms courts reconnus : docker, %s
-Les autres noms sont transmis à winget (ex : apt install Spotify.Spotify).
-`, Version, strings.Join(AliasNames(), ", "))
+Noms : %d noms Linux (Debian, Ubuntu, Arch, Homebrew) sont connus. Pour un autre nom,
+apt cherche dans winget le logiciel qui porte ce nom court ou qui fournit cette commande,
+et te fait choisir si plusieurs correspondent (ton choix est retenu).
+Un identifiant winget marche toujours : apt install Spotify.Spotify
+`, Version, len(aliases))
 }
