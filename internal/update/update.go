@@ -132,6 +132,14 @@ func InstallDir() (string, error) {
 	return filepath.Dir(exe), nil
 }
 
+// RelaunchHere : le terminal interactif se relancera lui-même après la mise à jour (voir UpdatedTo).
+var RelaunchHere bool
+
+var updatedTo string
+
+// UpdatedTo : la version installée par ce processus ("" si aucune mise à jour n'a eu lieu).
+func UpdatedTo() string { return updatedTo }
+
 // Run cherche et installe la dernière version. force : réinstalle même si la version est identique.
 func Run(current string, force bool) int {
 	ui.Step("Recherche d'une mise à jour d'Orvaen Terminal")
@@ -158,8 +166,13 @@ func Run(current string, force bool) int {
 		ui.Errorf("la mise à jour a échoué, rien n'a été modifié : %v", err)
 		return 1
 	}
+	updatedTo = rel.Tag
 	ui.Info("Orvaen Terminal est à jour (" + rel.Tag + ").")
-	ui.Info("Les fenêtres déjà ouvertes gardent l'ancienne version jusqu'à leur fermeture ;")
+	if RelaunchHere {
+		ui.Info("Les autres fenêtres déjà ouvertes gardent l'ancienne version jusqu'à leur fermeture ;")
+	} else {
+		ui.Info("Les fenêtres déjà ouvertes gardent l'ancienne version jusqu'à leur fermeture ;")
+	}
 	ui.Info("ce qui tourne (Docker, conteneurs, serveurs) continue sans interruption.")
 	return 0
 }

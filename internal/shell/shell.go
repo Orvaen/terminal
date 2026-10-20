@@ -11,7 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -108,6 +110,7 @@ func (s *Shell) errorf(format string, a ...any) {
 // Interactive lance la boucle « prompt → commande » jusqu'à exit ou Ctrl+Z.
 func (s *Shell) Interactive() int {
 	s.interactive = true
+	update.RelaunchHere = true
 	if s.color {
 		fmt.Fprint(s.out, "\x1b]0;"+AppName+"\x07")
 	}
@@ -177,6 +180,44 @@ func (s *Shell) run(line string) {
 		}
 		setupCoreutils() // « apt install coreutils »
 		applyPathPrefs()
+		if v := update.UpdatedTo(); v != "" && v != apt.Version {
+			s.relaunch(v)
+		}
+	}
+}
+
+// relaunch lance la nouvelle version du terminal dans cette fenêtre, après « apt upgrade terminal ».
+// Le dossier, les variables exportées et l'historique suivent ; l'ancienne version attend sa fin et
+// quitte avec son code (elle ne fait plus rien d'autre).
+func (s *Shell) relaunch(version string) {
+	dir, err := update.InstallDir()
+	if err != nil {
+		return
+	}
+	exe := filepath.Join(dir, "terminal.exe")
+	if runtime.GOOS != "windows" {
+		exe = filepath.Join(dir, "terminal")
+	}
+	if _, err := os.Stat(exe); err != nil {
+		return
+	}
+	fmt.Fprintf(s.out, "%s Relance du terminal en %s dans cette fenêtre…\n", s.paint("1;32", "==>"), version)
+	// La nouvelle version augmente SHLVL : on lui donne le niveau d'avant ce terminal.
+	if lvl, err := strconv.Atoi(os.Getenv("SHLVL")); err == nil && lvl > 0 {
+		os.Setenv("SHLVL", strconv.Itoa(lvl-1))
+	}
+	cmd := exec.Command(exe)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	err = cmd.Run()
+	s.exiting = true
+	s.last = 0
+	var ee *exec.ExitError
+	switch {
+	case errors.As(err, &ee):
+		s.last = ee.ExitCode()
+	case err != nil:
+		s.errorf("terminal: impossible de lancer %s : %v (ferme et rouvre la fenêtre)", exe, err)
+		s.exiting = false
 	}
 }
 
