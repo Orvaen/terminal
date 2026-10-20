@@ -1,8 +1,3 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="brand/terminal-symbole-blanc.svg">
-  <img src="brand/terminal-symbole-noir.svg" width="40" alt="">
-</picture>
-
 # Commandes
 
 [← Retour à l'accueil](../README.md)

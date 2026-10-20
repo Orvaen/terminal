@@ -1,8 +1,3 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="brand/terminal-symbole-blanc.svg">
-  <img src="brand/terminal-symbole-noir.svg" width="40" alt="">
-</picture>
-
 # Docker léger
 
 [← Retour à l'accueil](../README.md)
@@ -18,13 +13,6 @@ $ docker compose up -d
 ```
 
 ## Comment ça marche
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="brand/schema-docker-sombre.svg">
-    <img src="brand/schema-docker-clair.svg" alt="La commande docker passe par docker.exe puis wsl.exe jusqu'à Docker Engine, dans une machine Alpine Linux sous WSL2, qui fait tourner les conteneurs." width="880">
-  </picture>
-</p>
 
 Les conteneurs ont besoin d'un noyau Linux, que Windows n'a pas : il faut donc une petite machine virtuelle Linux.
 Docker Desktop en utilise déjà une, dans WSL2, mais il ajoute tout le reste par-dessus. Le Docker léger garde

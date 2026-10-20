@@ -1,8 +1,3 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="brand/terminal-symbole-blanc.svg">
-  <img src="brand/terminal-symbole-noir.svg" width="40" alt="">
-</picture>
-
 # Développement
 
 [← Retour à l'accueil](../README.md)
@@ -33,7 +28,7 @@ internal/docker/    Docker léger : machine Alpine dans WSL2, moteur à la deman
 internal/platform/  droits administrateur, élévation UAC, console Windows
 internal/ui/        affichage des messages (==>, W:, E:)
 docs/               documentation
-docs/brand/         logo et visuels, générés par build.py
+docs/brand/         logo, généré par build.py
 install.ps1         installeur (copie, PATH, raccourcis, profil Windows Terminal)
 build.ps1           compilation + installation
 ```
@@ -57,10 +52,9 @@ git push --tags
 La CI crée alors une release avec deux zips, `x64` et `arm64`, qui contiennent les exécutables, l'icône et
 `install.ps1`.
 
-## Visuels
+## Logo
 
-Le logo, l'icône, les bannières, les aperçus et les pictogrammes de la documentation sont générés par un script
-Python, à partir des polices Arkerion :
+Le logo, l'icône et la carte de partage sont générés par un script Python, à partir de la police Arkerion Sans :
 
 ```bash
 pip install fonttools pillow
@@ -68,8 +62,6 @@ ARKERION_FONTS=../Arkerion-Docs/src/fonts python docs/brand/build.py
 ```
 
 Sans `ARKERION_FONTS`, le script cherche un dossier `arkerion-docs` ou `Arkerion-Docs` à côté du dépôt.
-Le texte est vectorisé : les SVG produits n'ont pas besoin des polices. Pour changer un visuel, modifie
-`docs/brand/build.py` puis relance-le, plutôt que d'éditer les SVG à la main.
 
 ## Conventions
 
