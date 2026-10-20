@@ -228,7 +228,8 @@ func joinPastedLines(text string) string {
 			continue
 		}
 		if b.Len() == 0 {
-			b.WriteString(strings.TrimRight(line, " "))
+			// sans l'indentation copiée avec (une ligne qui commence par une espace n'irait pas dans l'historique)
+			b.WriteString(trimmed)
 			continue
 		}
 		prev := strings.TrimRight(b.String(), " ")

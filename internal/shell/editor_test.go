@@ -196,7 +196,7 @@ func TestTabReq(t *testing.T) {
 
 func TestEditorBracketedPaste(t *testing.T) {
 	s := &Shell{}
-	paste := "\x1b[200~echo \"$USER\"\r\n\r\n# commentaire\r\nf=a.pdf; echo ${f%.*}\r\nnpm ci &&\r\n  npm test\r\nmake \\\r\n  all\r\n\x1b[201~"
+	paste := "\x1b[200~   echo \"$USER\"\r\n\r\n# commentaire\r\nf=a.pdf; echo ${f%.*}\r\nnpm ci &&\r\n  npm test\r\nmake \\\r\n  all\r\n\x1b[201~"
 	got, _, err := readWith(t, s, "X "+paste+"\r")
 	want := `X echo "$USER"; f=a.pdf; echo ${f%.*}; npm ci && npm test; make  all`
 	if err != nil || got != want {
