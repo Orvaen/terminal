@@ -19,6 +19,7 @@ $ sudo apt full-upgrade
 
 ## Fonctionnalités
 
+- **Prompt au choix** : 8 styles (minimal, flèche, blocs, Git, PowerShell…) ou le tien, avec `prompt`.
 - **Commandes Linux** : `ls`, `cd`, `cat`, `rm`, `cp`, `mv`, `mkdir -p`, enchaînements `&&` et `||`, vrais tubes et redirections (`|`, `>`, `2>&1`), complétion avec Tab.
 - **Coreutils de Microsoft** : `apt install coreutils` ajoute `grep`, `head`, `sort`, `find`, `xargs`… (78 commandes Unix natives), branchées sur le terminal.
 - **apt** : installe et met à jour tes logiciels via winget, et Windows via Windows Update. Comprend les noms Linux (`code`, `fd-find`…).

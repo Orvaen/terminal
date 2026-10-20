@@ -7,17 +7,51 @@ et passe tout le reste à Windows.
 
 ## Le prompt
 
+Le prompt existe en plusieurs styles. `prompt` les affiche tous, avec un aperçu dans ton dossier actuel,
+et `prompt <nom>` en choisit un (gardé pour les prochaines fenêtres) :
+
 ```text
-dev@PC WIN ~/projets/site
-$
+$ prompt fleche
 ```
 
-| Élément | Signification |
+| Style | Aperçu |
 |---|---|
-| `dev@PC` | Ton nom d'utilisateur et le nom du PC |
-| `WIN` | Session normale. Devient `ADMIN` quand le terminal tourne en administrateur |
-| `~/projets/site` | Le dossier courant ; `~` est ton dossier personnel, les `\` deviennent `/` |
-| `$` | Prêt. Devient `#` en administrateur, et passe en rouge si la dernière commande a échoué |
+| `classique` (par défaut) | `dev@PC WIN ~/projets/site`, puis `$` à la ligne |
+| `minimal` | `site ❯` |
+| `chemin` | `~/projets/site main ❯` |
+| `git` | `dev@PC ~/projets/site (main)`, puis `$` à la ligne, comme Git Bash |
+| `fleche` | `╭─ dev dans ~/projets/site sur main à 14:05`, puis `╰─❯` |
+| `blocs` | des blocs de couleur ` site ` ` main ` puis `❯`, style powerline sans police spéciale |
+| `windows` | `C:\Users\dev\projets\site>`, comme cmd |
+| `powershell` | `PS C:\Users\dev\projets\site>` |
+
+Dans tous les styles, le symbole (`$`, `❯`) passe en rouge si la dernière commande a échoué, et devient `#` en
+administrateur. La branche Git est lue directement dans `.git` : le prompt reste instantané, même dans un gros dépôt.
+
+### Ton propre prompt
+
+```text
+$ prompt perso "{nl}{cyan}{dossier}{/}[[ {violet}{git}{/}]] {symbole-fleche}"
+```
+
+| Élément | Affiche |
+|---|---|
+| `{user}`, `{host}` | Ton nom d'utilisateur, le nom du PC |
+| `{dir}` | Le dossier façon Linux : `~/projets/site` |
+| `{dossier}` | Seulement le nom du dossier : `site` |
+| `{chemin}` | Le chemin Windows : `C:\Users\dev\projets\site` |
+| `{git}` | La branche Git (vide hors d'un dépôt) |
+| `{heure}` | L'heure : `14:05` |
+| `{code}` | Le code de la dernière commande, si elle a échoué |
+| `{admin}` | `ADMIN` en administrateur, sinon `WIN` |
+| `{symbole}`, `{symbole-fleche}` | `$` ou `❯` (vert ou rouge), `#` en administrateur |
+| `{nl}` | Retour à la ligne : la dernière ligne est celle où tu tapes |
+| `{rouge}` `{vert}` `{jaune}` `{bleu}` `{violet}` `{cyan}` `{blanc}` `{gris}` `{gras}` | Couleurs du texte |
+| `{fond-bleu}` `{fond-violet}` `{fond-vert}` `{fond-rouge}` `{fond-gris}` | Couleurs de fond |
+| `{/}` | Revient à la couleur normale |
+| `[[ … ]]` | Partie affichée seulement si ses éléments ont une valeur : `[[ ({git})]]` n'affiche rien hors d'un dépôt Git |
+
+`prompt aide` rappelle cette liste. Le choix est enregistré dans `%APPDATA%\OrvaenTerminal\terminal-config.json`.
 
 ## Saisie et complétion
 
@@ -32,6 +66,7 @@ les affiche toutes.
 | `apt install` | les noms courts connus (`git`, `node`, `docker`…) |
 | `docker`, `docker engine`, `docker compose` | leurs sous-commandes |
 | `run` | les scripts de `terminal.json` |
+| `prompt` | les styles de prompt |
 | `cd`, `rmdir` | les dossiers |
 | tout le reste | les fichiers et dossiers ; un nom avec une espace est mis entre guillemets |
 

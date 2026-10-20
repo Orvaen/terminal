@@ -36,6 +36,7 @@ type Shell struct {
 	prevDir string // pour « cd - »
 	exiting bool
 
+	promptFmt   string          // format du prompt (thème choisi avec la commande prompt)
 	edit        *editor         // saisie touche par touche (nil : saisie par ligne)
 	installed   func() []string // logiciels installés, pour la complétion de « apt remove »
 	historyPath string
@@ -58,6 +59,7 @@ func New() *Shell {
 		return platform.RunSelfElevated("-c", "apt "+joinArgs(args))
 	}
 	s.installed = func() []string { return apt.InstalledNames(4 * time.Second) }
+	s.promptFmt = promptFormat(loadPromptConfig())
 	addUnixTools()
 	setupCoreutils() // Coreutils de Microsoft, s'il est installé, passe en tête du PATH
 	if restore, ok := platform.EnableRawInput(); ok {
@@ -160,27 +162,20 @@ func (s *Shell) promptHeader() string {
 	return full[:strings.LastIndex(full, "\n")+1]
 }
 
-// promptTail : le « $ » de la ligne de saisie et sa largeur visible.
+// promptTail : la ligne de saisie du prompt (« $ », « ❯ »…) et sa largeur visible.
 func (s *Shell) promptTail() (string, int) {
 	full := s.prompt()
-	return full[strings.LastIndex(full, "\n")+1:], 2
+	tail := full[strings.LastIndex(full, "\n")+1:]
+	return tail, visibleWidth(tail)
 }
 
+// prompt : le prompt complet, selon le thème choisi (voir prompt.go et la commande prompt).
 func (s *Shell) prompt() string {
-	cwd, _ := os.Getwd()
-	user := firstNonEmpty(os.Getenv("USERNAME"), os.Getenv("USER"), "user")
-	host, _ := os.Hostname()
-
-	label, labelColor, sym := "WIN", "35", "$"
-	if s.admin {
-		label, labelColor, sym = "ADMIN", "1;31", "#"
+	format := s.promptFmt
+	if format == "" {
+		format = promptFormat(promptConfig{})
 	}
-	symColor := "1;32"
-	if s.last != 0 {
-		symColor = "1;31"
-	}
-	return "\n" + s.paint("32", user+"@"+host) + " " + s.paint(labelColor, label) + " " +
-		s.paint("33", displayPath(cwd, homeDir())) + "\n" + s.paint(symColor, sym) + " "
+	return renderPrompt(format, s.context())
 }
 
 // RunLine exécute une ligne complète (avec ; && ||) et renvoie le code de la dernière commande.

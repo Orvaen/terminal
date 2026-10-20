@@ -35,7 +35,7 @@ var builtins map[string]builtin
 var builtinOrder = []string{
 	"apt", "sudo", "docker", "req", "run",
 	"ls", "cd", "pwd", "cat", "touch", "mkdir", "rm", "rmdir", "cp", "mv",
-	"echo", "clear", "which", "export", "unset", "env", "open", "help", "exit",
+	"echo", "clear", "which", "export", "unset", "env", "open", "prompt", "help", "exit",
 }
 
 func init() {
@@ -62,6 +62,7 @@ func init() {
 		"unset":  {runUnset, "unset NOM", "Supprime une variable d'environnement"},
 		"env":    {runEnv, "env", "Liste les variables d'environnement"},
 		"open":   {runOpen, "open [chemin]", "Ouvre un dossier ou fichier dans l'Explorateur"},
+		"prompt": {runPrompt, "prompt [style]", "Change l'apparence du prompt (aperçu de chaque style)"},
 		"help":   {runHelp, "help", "Affiche cette aide"},
 		"exit":   {runExit, "exit [code]", "Quitte le terminal"},
 	}

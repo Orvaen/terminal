@@ -48,6 +48,11 @@ func (s *Shell) complete(line []rune, pos int) (int, []string) {
 		filtered = false
 	case strings.EqualFold(words[0], "req") && strings.EqualFold(words[1], "liste") && len(words) == 2:
 		cands, filtered = httpFiles(pathCandidates(cur, false)), false
+	case strings.EqualFold(words[0], "prompt") && len(words) == 1:
+		for _, t := range Themes {
+			cands = append(cands, t.Name)
+		}
+		cands = append(cands, "perso", "aide")
 	case strings.EqualFold(words[0], "run"):
 		cands = scriptCandidates(words[1:])
 	case strings.EqualFold(words[0], "cd") || strings.EqualFold(words[0], "rmdir"):
