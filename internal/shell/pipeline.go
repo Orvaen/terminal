@@ -211,6 +211,13 @@ func (s *Shell) resolve(args []string) (resolved, bool) {
 				return resolved{path: path, pre: pre, args: rest}, true
 			}
 		}
+		// « ls --help », « prompt --help » : l'aide de la commande intégrée.
+		if len(args) == 2 && (args[1] == "--help" || args[1] == "-h") && name != "help" {
+			if _, own := detailedHelp[name]; own || builtins[name].usage != "" {
+				h := builtin{run: func(s *Shell, _ []string) int { return helpFor(s, name) }}
+				return resolved{builtin: &h, args: nil}, true
+			}
+		}
 		return resolved{builtin: &b, args: args[1:]}, true
 	}
 	if path, err := exec.LookPath(args[0]); err == nil {

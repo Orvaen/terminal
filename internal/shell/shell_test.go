@@ -265,3 +265,33 @@ func TestSetMakeShell(t *testing.T) {
 		t.Fatal("un SHELL choisi par l'utilisateur ne doit pas être remplacé")
 	}
 }
+
+func TestHelpForCommand(t *testing.T) {
+	s, out, errOut, _ := testShell(t)
+	if code := s.RunLine("help prompt"); code != 0 || !strings.Contains(out.String(), "prompt perso") || !strings.Contains(out.String(), "{symbole-fleche}") {
+		t.Fatalf("help prompt : %d %q", code, out)
+	}
+	out.Reset()
+	s.RunLine("help mkdir")
+	if !strings.Contains(out.String(), "mkdir [-p] <dossier...>") {
+		t.Fatalf("help mkdir : %q", out)
+	}
+	out.Reset()
+	s.RunLine("prompt --help")
+	if !strings.Contains(out.String(), "prompt perso") {
+		t.Fatalf("prompt --help : %q", out)
+	}
+	out.Reset()
+	s.RunLine("help ll")
+	if !strings.Contains(out.String(), "autre nom de ls") {
+		t.Fatalf("help ll : %q", out)
+	}
+	if code := s.RunLine("help commandequinexistepas"); code != 1 || !strings.Contains(errOut.String(), "commande inconnue") {
+		t.Fatalf("help inconnue : %d %q", code, errOut)
+	}
+	out.Reset()
+	s.RunLine("help")
+	if !strings.Contains(out.String(), "help <commande>") {
+		t.Fatalf("help général : %q", out)
+	}
+}

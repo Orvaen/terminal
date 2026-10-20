@@ -111,7 +111,7 @@ Une ligne qui commence par une espace n'est pas gardée dans l'historique.
 | `which <commande>` | Indique si une commande est intégrée, ou où se trouve le programme |
 | `export NOM=valeur`, `unset NOM`, `env` | Variables d'environnement |
 | `open [chemin]` | Ouvre un dossier ou un fichier dans l'Explorateur Windows |
-| `help`, `exit [code]` | Aide, quitter |
+| `help [commande]`, `exit [code]` | Aide (`help prompt`, `help path`, ou `<commande> --help`), quitter |
 
 > [!IMPORTANT]
 > `rm` refuse de supprimer la racine d'un disque (`C:\`) et ton dossier personnel, même avec `-rf`.

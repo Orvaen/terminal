@@ -772,12 +772,25 @@ func runOpen(s *Shell, args []string) int {
 }
 
 func runHelp(s *Shell, args []string) int {
+	if len(args) > 0 {
+		code := 0
+		for i, name := range args {
+			if i > 0 {
+				fmt.Fprintln(s.out)
+			}
+			if c := helpFor(s, name); c != 0 {
+				code = c
+			}
+		}
+		return code
+	}
 	fmt.Fprintf(s.out, "%s %s — commandes intégrées :\n\n", AppName, apt.Version)
 	for _, name := range builtinOrder {
 		b := builtins[name]
 		fmt.Fprintf(s.out, "  %-36s %s\n", b.usage, b.help)
 	}
 	fmt.Fprint(s.out, `
+Aide d'une commande : help <commande> (ex. help prompt).
 Aussi : apt-get (= apt), docker-compose (= docker compose), ll (= ls -l).
 Enchaîne avec  &&  ||  ;   et relie avec  |  >  >>  <  2>&1  (comme bash).
 Tout le reste est lancé tel quel : programmes Windows (git, code, notepad...)
