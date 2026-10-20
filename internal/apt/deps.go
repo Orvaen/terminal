@@ -43,6 +43,17 @@ var (
 	}
 )
 
+// msvcInstalled : les Build Tools ou Visual Studio avec le compilateur C++, d'après vswhere.
+var msvcInstalled = func() bool {
+	vswhere := filepath.Join(os.Getenv("ProgramFiles(x86)"), "Microsoft Visual Studio", "Installer", "vswhere.exe")
+	if os.Getenv("ProgramFiles(x86)") == "" {
+		return false
+	}
+	out, err := exec.Command(vswhere, "-latest", "-products", "*",
+		"-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath").Output()
+	return err == nil && strings.TrimSpace(string(out)) != ""
+}
+
 // cmdDeps : apt deps [install] [dossier]. install force le mode installation (apt build-dep).
 func cmdDeps(args []string, install, yes bool) int {
 	dir := "."
@@ -55,6 +66,7 @@ func cmdDeps(args []string, install, yes bool) int {
 		}
 	}
 	deps.DockerInstalled = dockerInstalled
+	deps.MSVCInstalled = msvcInstalled
 
 	proj, err := deps.Detect(dir)
 	if err != nil {

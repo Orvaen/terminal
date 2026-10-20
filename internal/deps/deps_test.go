@@ -116,8 +116,9 @@ func TestCleanVersion(t *testing.T) {
 }
 
 func TestCheck(t *testing.T) {
-	oldLook, oldVer, oldDocker := LookPath, VersionOf, DockerInstalled
-	t.Cleanup(func() { LookPath, VersionOf, DockerInstalled = oldLook, oldVer, oldDocker })
+	oldLook, oldVer, oldDocker, oldMSVC := LookPath, VersionOf, DockerInstalled, MSVCInstalled
+	t.Cleanup(func() { LookPath, VersionOf, DockerInstalled, MSVCInstalled = oldLook, oldVer, oldDocker, oldMSVC })
+	MSVCInstalled = func() bool { return true }
 	installed := map[string]string{
 		"node":   `C:\Program Files\nodejs\node.exe`,
 		"go":     `C:\Go\bin\go.exe`,
@@ -150,12 +151,15 @@ func TestCheck(t *testing.T) {
 		{Tool: toolByKey("docker")},
 		{Tool: toolByKey("composer")},
 		{Tool: toolByKey("java"), Version: "17"},
+		{Tool: toolByKey("cpp")},
+		{Tool: Tool{Key: "x", Label: "Sans paquet", Commands: []string{"x"}}},
 	}
 	got := Check(needs)
 	want := []struct {
 		state State
 		have  string
-	}{{OK, "24.1.0"}, {Outdated, "1.22.5"}, {Missing, ""}, {OK, "Docker léger"}, {NoPackage, ""}, {OK, "21.0.2"}}
+	}{{OK, "24.1.0"}, {Outdated, "1.22.5"}, {Missing, ""}, {OK, "Docker léger"}, {Missing, ""}, {OK, "21.0.2"},
+		{OK, "MSVC (Build Tools)"}, {NoPackage, ""}}
 	for i, w := range want {
 		if got[i].State != w.state || got[i].Have != w.have {
 			t.Errorf("%s : état %v %q, attendu %v %q", got[i].Key, got[i].State, got[i].Have, w.state, w.have)

@@ -39,6 +39,8 @@ var (
 	}
 	// DockerInstalled : le Docker léger du terminal (branché par apt).
 	DockerInstalled = func() bool { return false }
+	// MSVCInstalled : le compilateur de Visual Studio, installé mais hors du PATH (branché par apt).
+	MSVCInstalled = func() bool { return false }
 )
 
 // versionArgs : comment demander sa version à chaque programme.
@@ -75,6 +77,9 @@ func Check(needs []Need) []Status {
 			}
 			st.Have = extractVersion(VersionOf(p, args...))
 			break
+		}
+		if st.State == Missing && n.Key == "cpp" && MSVCInstalled() {
+			st.State, st.Have, st.Command = OK, "MSVC (Build Tools)", "cl"
 		}
 		switch {
 		case st.State == Missing && n.Package == "":

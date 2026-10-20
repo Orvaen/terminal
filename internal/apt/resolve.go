@@ -59,17 +59,14 @@ func userAlias(name string) (string, bool) {
 
 // windowsNotes : paquets Linux dont l'équivalent est déjà dans Windows ou s'installe autrement.
 var windowsNotes = map[string]string{
-	"build-essential": "les outils de compilation C/C++ sous Windows : apt install Microsoft.VisualStudio.2022.BuildTools (MSVC), ou apt install MSYS2.MSYS2 pour gcc.",
-	"gcc":             "gcc sous Windows passe par MSYS2 : apt install MSYS2.MSYS2, puis dans MSYS2 : pacman -S mingw-w64-ucrt-x86_64-gcc. Pour MSVC : apt install Microsoft.VisualStudio.2022.BuildTools.",
-	"g++":             "voir « apt install gcc » : MSYS2 (gcc) ou Microsoft.VisualStudio.2022.BuildTools (MSVC).",
-	"openssh-client":  "OpenSSH est déjà intégré à Windows : ssh, scp et sftp marchent tout de suite.",
-	"openssh":         "OpenSSH est déjà intégré à Windows : ssh, scp et sftp marchent tout de suite.",
-	"ssh":             "OpenSSH est déjà intégré à Windows : ssh, scp et sftp marchent tout de suite.",
-	"tree":            "tree est déjà intégré à Windows.",
-	"sudo":            "sudo est déjà intégré au terminal.",
-	"tar":             "tar est déjà intégré à Windows.",
-	"unzip":           "Windows ouvre les .zip tout seul ; en ligne de commande : tar -xf fichier.zip.",
-	"zip":             "en ligne de commande : tar -a -cf archive.zip dossier (intégré à Windows), ou apt install 7zip.",
+	"openssh-client": "OpenSSH est déjà intégré à Windows : ssh, scp et sftp marchent tout de suite.",
+	"openssh":        "OpenSSH est déjà intégré à Windows : ssh, scp et sftp marchent tout de suite.",
+	"ssh":            "OpenSSH est déjà intégré à Windows : ssh, scp et sftp marchent tout de suite.",
+	"tree":           "tree est déjà intégré à Windows.",
+	"sudo":           "sudo est déjà intégré au terminal.",
+	"tar":            "tar est déjà intégré à Windows.",
+	"unzip":          "Windows ouvre les .zip tout seul ; en ligne de commande : tar -xf fichier.zip.",
+	"zip":            "en ligne de commande : tar -a -cf archive.zip dossier (intégré à Windows), ou apt install 7zip.",
 }
 
 // interactive : peut-on poser une question (console, sans -y) ? Remplacée dans les tests.

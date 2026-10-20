@@ -159,24 +159,24 @@ func TestCuratedIDMissingFallsBackToSearch(t *testing.T) {
 
 func TestWindowsNotesAndAliasCommand(t *testing.T) {
 	calls := fakeWinget(t, nil)
-	if code := Run([]string{"install", "build-essential"}); code != 0 || len(*calls) != 0 {
+	if code := Run([]string{"install", "tree"}); code != 0 || len(*calls) != 0 {
 		t.Fatalf("rien à installer attendu : code %d, appels %v", code, *calls)
 	}
-	if Run([]string{"alias", "build-essential", "Microsoft.VisualStudio.2022.BuildTools"}) != 0 {
+	if Run([]string{"alias", "tree", "Some.Tree"}) != 0 {
 		t.Fatal("alias")
 	}
-	Run([]string{"install", "build-essential"})
-	if len(*calls) != 1 || (*calls)[0][2] != "Microsoft.VisualStudio.2022.BuildTools" {
+	Run([]string{"install", "tree"})
+	if len(*calls) != 1 || (*calls)[0][2] != "Some.Tree" {
 		t.Fatalf("ton nom passe avant la note : %v", *calls)
 	}
-	if Run([]string{"alias", "-r", "build-essential"}) != 0 {
+	if Run([]string{"alias", "-r", "tree"}) != 0 {
 		t.Fatal("alias -r")
 	}
-	if _, ok := userAlias("build-essential"); ok {
+	if _, ok := userAlias("tree"); ok {
 		t.Fatal("le nom aurait dû être oublié")
 	}
 	data, _ := os.ReadFile(userAliasPath())
-	if strings.Contains(string(data), "build-essential") {
+	if strings.Contains(string(data), "tree") {
 		t.Fatalf("fichier : %s", data)
 	}
 }

@@ -70,13 +70,13 @@ Le projet et ses sous-dossiers sont parcourus sur 3 niveaux (`api/`, `web/`, `se
 | `go.mod` | Go | la ligne `go 1.23` | `go mod download` |
 | `Cargo.toml`, `rust-toolchain.toml` | Rust | `rust-version`, `channel` | `cargo fetch` |
 | `pyproject.toml`, `requirements.txt`, `setup.py`, `Pipfile` | Python ; uv ou Poetry s'ils sont utilisés | `requires-python`, `.python-version`, `runtime.txt` | `uv sync`, `poetry install`, ou un `.venv` avec `pip install -r requirements.txt` |
-| `pom.xml`, `build.gradle` | Java (JDK) ; Maven ou Gradle sans wrapper (`mvnw`, `gradlew`) | `maven.compiler.release`, `java.version`, `JavaLanguageVersion.of(…)` | |
+| `pom.xml`, `build.gradle` | Java (JDK) ; Maven ou Gradle si le projet n'a pas de wrapper (`mvnw`, `gradlew`) | `maven.compiler.release`, `java.version`, `JavaLanguageVersion.of(…)` | |
 | `*.csproj`, `*.sln`, `global.json` | .NET SDK | `sdk.version` de `global.json` | `dotnet restore` |
 | `composer.json` | PHP, Composer | `require.php` | `composer install` |
 | `Gemfile`, `.ruby-version` | Ruby | `.ruby-version` | `bundle install` |
 | `Makefile` | make, et Git (son `sh` exécute les recettes) ; Docker si les recettes l'utilisent | | |
 | `Dockerfile`, `compose.yaml`, `docker-compose.yml` | Docker (le [Docker léger](docker.md)) | | |
-| `CMakeLists.txt` | CMake, un compilateur C/C++ | | |
+| `CMakeLists.txt` | CMake, un compilateur C/C++ (gcc, clang ou MSVC ; gcc s'il n'y en a aucun) | | |
 | `*.tf`, `Chart.yaml`, `*.hurl` | Terraform, Helm, Hurl | | |
 | `mix.exs`, `pubspec.yaml`, `Package.swift`, `build.sbt`, `stack.yaml`, `cpanfile` | Elixir, Dart, Swift, sbt, Stack, Perl | | |
 | `.tool-versions`, `mise.toml` | les outils listés | leurs versions | |
@@ -85,8 +85,9 @@ Une version demandée est un **minimum** : `.nvmrc` à `22` est satisfait par No
 demandent une version, la plus exigeante l'emporte. Pour Java et .NET, la version choisit le paquet :
 `maven.compiler.release` à 17 installe le JDK 17, `global.json` en 8.0 installe le SDK .NET 8.
 
-Composer, Maven, Gradle, Poetry et les compilateurs C/C++ ne s'installent pas avec winget : `apt deps` indique
-comment les obtenir.
+Composer, Maven, Gradle et Poetry sont installés par `apt` lui-même (voir
+[Installés par apt lui-même](#installés-par-apt-lui-même)). Pour le C/C++, `apt deps` installe gcc ; MSVC, s'il est
+déjà installé (`apt install build-essential`), est reconnu même s'il n'est pas dans le PATH.
 
 ## Noms de paquets
 
@@ -97,7 +98,7 @@ et trouve le bon logiciel, dans cet ordre :
 | Étape | Exemple |
 |---|---|
 | 1. **Tes noms**, créés avec `apt alias` ou retenus après un choix | `apt alias code Microsoft.VisualStudioCode` |
-| 2. **La table des noms connus** : 236 noms Debian, Ubuntu, Arch et Homebrew pour 130 logiciels | `fd-find` → `sharkdp.fd`, `openjdk-21-jdk` → `EclipseAdoptium.Temurin.21.JDK`, `google-chrome-stable` → `Google.Chrome` |
+| 2. **La table des noms connus** : 264 noms Debian, Ubuntu, Arch et Homebrew pour 143 logiciels, voir la [liste complète](paquets.md) | `fd-find` → `sharkdp.fd`, `openjdk-21-jdk` → `EclipseAdoptium.Temurin.21.JDK`, `google-chrome-stable` → `Google.Chrome` |
 | 3. **Le nom court déclaré dans winget** (moniker) | `vscode` → `Microsoft.VisualStudioCode` |
 | 4. **La commande fournie** : sous Linux, le paquet porte souvent le nom de sa commande | `mytool` → le logiciel qui installe `mytool.exe` |
 | 5. **Une recherche winget** : un résultat évident est pris directement, sinon tu choisis | voir plus bas |
@@ -134,22 +135,34 @@ Un identifiant winget complet marche toujours : `apt install Spotify.Spotify`.
 
 Ils sont rangés dans `%APPDATA%\OrvaenTerminal\paquets.json`, que tu peux aussi modifier à la main.
 
-### Déjà dans Windows
+### Installés par apt lui-même
 
-Certains paquets Linux n'ont rien à installer sous Windows, ou s'installent autrement. `apt` l'explique au lieu
-d'installer autre chose :
+Composer, Maven, Gradle et Poetry ne sont pas dans winget : `apt install` les télécharge depuis leur source
+officielle (avec vérification de la somme de contrôle quand l'éditeur en publie une), les range dans
+`%LOCALAPPDATA%\OrvaenTerminal\outils` et ajoute leur dossier à ton PATH. Ils marchent tout de suite dans le
+terminal. `apt upgrade` les met à jour, `apt remove` les désinstalle.
 
-| Paquet | Ce qu'`apt` répond |
+| Paquet | A besoin de |
 |---|---|
-| `build-essential`, `gcc`, `g++` | Les outils de compilation : `Microsoft.VisualStudio.2022.BuildTools` (MSVC) ou `MSYS2.MSYS2` (gcc) |
-| `openssh-client`, `ssh` | OpenSSH est intégré à Windows |
-| `tree`, `tar` | Intégrés à Windows |
-| `zip`, `unzip` | `tar -a -cf archive.zip dossier` et `tar -xf archive.zip`, intégrés à Windows |
+| `composer` | PHP (`apt install php`) |
+| `maven` (ou `mvn`), `gradle` | Java (`apt install java`) |
+| `poetry` | Python (`apt install python`) |
+
+Pour compiler du C ou du C++ :
+
+| Paquet | Ce qui est installé |
+|---|---|
+| `gcc`, `g++`, `gdb` | GCC de [WinLibs](https://winlibs.com/) (MinGW-w64), avec gdb et CMake, utilisables tout de suite dans le terminal |
+| `build-essential` (ou `msvc`) | Le compilateur MSVC de Microsoft : les Build Tools de Visual Studio, **avec la charge de travail C++ déjà cochée**. `cl` s'utilise depuis « Developer PowerShell for VS », et CMake le trouve tout seul |
+
+Certains paquets Linux n'ont rien à installer sous Windows (`ssh`, `tree`, `tar`, `zip`…) : `apt` l'explique au lieu
+d'installer autre chose.
 
 `docker`, `docker.io`, `docker-ce` et `docker-compose` installent le [Docker léger](docker.md), sans passer par winget.
 `python` installe la dernière version de Python (3.14), `java` et `default-jdk` le JDK Temurin 25 (LTS).
 
-La table est dans [`internal/apt/aliases.go`](../internal/apt/aliases.go). Ses identifiants ont été vérifiés dans
+La liste de tous les noms connus est dans [Paquets connus](paquets.md), générée depuis
+[`internal/apt/aliases.go`](../internal/apt/aliases.go). Ses identifiants ont été vérifiés dans
 le dépôt des manifestes winget ; si l'un d'eux disparaît de winget, `apt` cherche automatiquement un équivalent.
 
 ## Sources officielles

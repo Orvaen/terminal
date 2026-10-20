@@ -46,7 +46,7 @@ et dans Windows Terminal.
 
 - [Installation](docs/installation.md)
 - [Commandes](docs/commandes.md)
-- [apt](docs/apt.md)
+- [apt](docs/apt.md) et la [liste des paquets connus](docs/paquets.md)
 - [Docker léger](docs/docker.md)
 - [run : les scripts du projet](docs/scripts.md)
 - [req : tester des requêtes HTTP](docs/req.md)

@@ -266,3 +266,22 @@ func EnableUTF8Console() (restore func()) {
 		}
 	}
 }
+
+// AddUserPath ajoute dir au PATH de l'utilisateur (registre), pour les prochaines fenêtres.
+func AddUserPath(dir string) error { return editUserPath(dir, true) }
+
+// RemoveUserPath retire dir du PATH de l'utilisateur.
+func RemoveUserPath(dir string) error { return editUserPath(dir, false) }
+
+func editUserPath(dir string, add bool) error {
+	op := `$e = $e | Where-Object { $_ -and $_.TrimEnd('\') -ine $d.TrimEnd('\') }`
+	if add {
+		op += `; $e += $d`
+	}
+	script := `$d = ` + psQuote(dir) + `; $p = [Environment]::GetEnvironmentVariable('Path', 'User'); ` +
+		`if (-not $p) { $p = '' }; $e = @($p -split ';'); ` + op + `; ` +
+		`[Environment]::SetEnvironmentVariable('Path', ($e -join ';'), 'User')`
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd.Run()
+}

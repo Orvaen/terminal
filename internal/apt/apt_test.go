@@ -14,6 +14,9 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 	oldW, oldA, oldOut := winget, wingetAvailable, stdout
 	oldSU, oldSC := selfUpdate, selfCheck
 	oldSearch, oldAliasPath, oldInter := wingetSearchOutput, userAliasPath, interactive
+	oldTools := toolsRoot
+	toolsDir := t.TempDir()
+	toolsRoot = func() string { return toolsDir }
 	aliasFile := filepath.Join(t.TempDir(), "paquets.json")
 	wingetSearchOutput = func(...string) string { return "" }
 	userAliasPath = func() string { return aliasFile }
@@ -35,6 +38,7 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 		winget, wingetAvailable, stdout = oldW, oldA, oldOut
 		selfUpdate, selfCheck = oldSU, oldSC
 		wingetSearchOutput, userAliasPath, interactive = oldSearch, oldAliasPath, oldInter
+		toolsRoot = oldTools
 	})
 	return &calls
 }

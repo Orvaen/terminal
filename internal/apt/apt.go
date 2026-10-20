@@ -167,6 +167,10 @@ func cmdUpgrade(pkgs []string) int {
 				code = dc
 			}
 		}
+		// Composer, Maven, Gradle, Poetry installés par apt
+		if ec := upgradeExtTools(); code == 0 {
+			code = ec
+		}
 		// Une compilation locale (build.ps1) n'est pas remplacée sans le demander : apt upgrade terminal.
 		if !update.IsDev(Version) {
 			if sc := selfUpdate(false); code == 0 {
@@ -181,6 +185,9 @@ func cmdUpgrade(pkgs []string) int {
 		}
 		if isSelf(p) {
 			return selfUpdate(false)
+		}
+		if t, ok := findExtTool(p); ok {
+			return installExt(t, true)
 		}
 		if isNode(p) {
 			if code, handled := upgradeNode(false); handled {
@@ -222,6 +229,12 @@ func cmdInstall(pkgs []string, yes bool) int {
 		if isDocker(p) {
 			return dockerInstall(Elevate)
 		}
+		if t, ok := findExtTool(p); ok {
+			return installExt(t, false)
+		}
+		if buildEssentialNames[strings.ToLower(p)] {
+			return installBuildEssential()
+		}
 		if note, ok := windowsNotes[strings.ToLower(p)]; ok {
 			if _, mine := userAlias(p); !mine {
 				ui.Info("Rien à installer : " + note)
@@ -261,6 +274,9 @@ func cmdRemove(pkgs []string, yes bool) int {
 	return forEach(pkgs, "Désinstallation de", func(p string) int {
 		if isDocker(p) {
 			return dockerUninstall(yes)
+		}
+		if t, ok := findExtTool(p); ok {
+			return removeExt(t)
 		}
 		return winget(append(append([]string{"uninstall"}, target(p)...), acceptSource)...)
 	})

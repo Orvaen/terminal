@@ -44,3 +44,9 @@ func RegistryPathDirs() []string { return nil }
 
 // EnableUTF8Console : les terminaux Unix sont déjà en UTF-8.
 func EnableUTF8Console() (restore func()) { return func() {} }
+
+// AddUserPath : hors Windows, rien à faire (utilisé seulement pour les tests).
+func AddUserPath(dir string) error { return nil }
+
+// RemoveUserPath : hors Windows, rien à faire.
+func RemoveUserPath(dir string) error { return nil }
