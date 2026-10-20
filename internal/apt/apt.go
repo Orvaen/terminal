@@ -129,25 +129,11 @@ func Run(args []string) int {
 }
 
 func cmdUpdate() int {
-	ui.Step("Mise à jour des sources")
-	if code := winget("source", "update"); code != 0 {
+	if code := updateSources(); code != 0 {
 		return code
 	}
-	ui.Step("Logiciels pouvant être mis à jour")
-	code := winget("upgrade", acceptSource)
-	reportOfficial()
-	reportSelf()
-	return code
-}
-
-// reportSelf signale une nouvelle version d'Orvaen Terminal (sauf pour une compilation locale).
-func reportSelf() {
-	if update.IsDev(Version) {
-		return
-	}
-	if latest, ok := selfCheck(); ok {
-		ui.Info(fmt.Sprintf("Orvaen Terminal %s → %s : apt upgrade terminal", Version, latest))
-	}
+	fmt.Fprintln(stdout)
+	return listUpgrades()
 }
 
 func cmdUpgrade(pkgs []string) int {
@@ -316,9 +302,7 @@ func cmdShow(pkgs []string) int {
 
 func cmdList(inv Invocation) int {
 	if inv.Upgradable {
-		code := winget("upgrade", acceptSource)
-		reportOfficial()
-		return code
+		return listUpgrades()
 	}
 	args := []string{"list"}
 	if len(inv.Packages) > 0 {

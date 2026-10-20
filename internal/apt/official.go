@@ -199,32 +199,6 @@ func containsAny(list, wanted []string) bool {
 	return false
 }
 
-// reportOfficial affiche ce que les sources officielles proposent (apt update, apt list --upgradable).
-func reportOfficial() {
-	plan, ok, err := checkNode()
-	if !ok {
-		return
-	}
-	if err != nil {
-		ui.Warn("nodejs.org injoignable, version de Node non vérifiée : " + err.Error())
-		return
-	}
-	var zero version
-	if plan.target == zero && plan.newMajorLTS == zero && plan.newCurrent == zero {
-		return
-	}
-	ui.Step("Depuis les sources officielles")
-	if plan.target != zero {
-		ui.Info(fmt.Sprintf("node  %s → %s  (nodejs.org)  : apt upgrade node", plan.installed, plan.target))
-	}
-	if plan.newMajorLTS != zero {
-		ui.Info(fmt.Sprintf("node  %s LTS disponible, nouvelle version majeure : apt install node", plan.newMajorLTS))
-	}
-	if plan.newCurrent != zero && plan.newCurrent.newer(plan.newMajorLTS) {
-		ui.Info(fmt.Sprintf("node  %s Current disponible (hors LTS) : apt install node-current", plan.newCurrent))
-	}
-}
-
 // upgradeNode met Node.js à jour depuis nodejs.org, dans sa version majeure.
 // Renvoie handled=false si Node.js n'est pas installé : l'appelant passe alors par winget.
 func upgradeNode(quietIfCurrent bool) (code int, handled bool) {
@@ -306,14 +280,17 @@ func downloadNodeMSI(v version) (string, error) {
 		return "", err
 	}
 	h := sha256.New()
-	_, err = io.Copy(io.MultiWriter(out, h), resp.Body)
+	bar := ui.NewBar(name, resp.ContentLength)
+	_, err = io.Copy(io.MultiWriter(out, h, bar), resp.Body)
 	if cerr := out.Close(); err == nil {
 		err = cerr
 	}
 	if err != nil {
+		bar.Abort()
 		os.RemoveAll(dir)
 		return "", fmt.Errorf("téléchargement de node : %w", err)
 	}
+	bar.Finish()
 	if got := hex.EncodeToString(h.Sum(nil)); got != want {
 		os.RemoveAll(dir)
 		return "", fmt.Errorf("somme de contrôle invalide pour %s", name)

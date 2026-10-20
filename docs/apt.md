@@ -27,6 +27,29 @@ et `apt.exe` permet de l'utiliser aussi depuis PowerShell ou cmd.
 | `apt alias [nom identifiant]` | Tes noms de paquets, voir [plus bas](#tes-noms--apt-alias) |
 | `apt help`, `apt version` | Aide, version |
 
+`apt update` affiche chaque source avec sa durée, puis un seul tableau des mises à jour, qu'elles viennent de
+winget, de nodejs.org ou des releases d'Orvaen Terminal :
+
+```text
+==> Mise à jour des sources
+  ✓ msstore        0,4 s
+  ✓ winget         1,2 s
+  ✓ winget-font    0,3 s
+
+==> Mises à jour disponibles
+  3 logiciel(s) à mettre à jour
+
+  Epic Online Services                        4.2.0    → 4.3.1       apt upgrade EpicGames.EpicOnlineServices
+  Microsoft OLE DB Driver 19 pour SQL Server  19.4.1.0 → 19.4.3      apt upgrade Microsoft.SQLServer.OLEDBDriver
+  Orvaen Terminal                             r24      → r25         apt upgrade terminal
+
+Tout mettre à jour : apt upgrade    Un seul : apt upgrade <nom>
+```
+
+Les téléchargements faits par `apt` lui-même (Orvaen Terminal, Node.js, Composer, Maven, Gradle, Alpine pour
+Docker) affichent une barre de progression avec la taille, le débit et le temps restant. Quand la sortie n'est pas
+une console (script, tube vers un fichier), rien n'est animé : une seule ligne par étape.
+
 `apt-get` est un synonyme d'`apt`. L'option `-y` est acceptée : les accords de licence sont acceptés automatiquement.
 `autoremove` et `clean` existent mais n'ont rien à faire sous Windows.
 

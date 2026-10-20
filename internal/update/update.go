@@ -198,7 +198,6 @@ func Apply(rel Release, dir, goarch string) error {
 		return fmt.Errorf("%s n'a pas de somme dans %s", zipAsset.Name, SumsFile)
 	}
 
-	ui.Info("Téléchargement de " + zipAsset.Name + "…")
 	zipPath := filepath.Join(tmp, "release.zip")
 	got, err := download(zipAsset.URL, zipPath)
 	if err != nil {
@@ -235,9 +234,21 @@ func download(url, dest string) (string, error) {
 		return "", err
 	}
 	h := sha256.New()
-	if _, err := io.Copy(io.MultiWriter(out, h), resp.Body); err != nil {
+	var w io.Writer = io.MultiWriter(out, h)
+	var bar *ui.Bar
+	if resp.ContentLength > 64<<10 { // pas de barre pour le petit fichier des sommes
+		bar = ui.NewBar(path.Base(url), resp.ContentLength)
+		w = io.MultiWriter(out, h, bar)
+	}
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if bar != nil {
+			bar.Abort()
+		}
 		out.Close()
 		return "", fmt.Errorf("téléchargement : %w", err)
+	}
+	if bar != nil {
+		bar.Finish()
 	}
 	if err := out.Close(); err != nil {
 		return "", err

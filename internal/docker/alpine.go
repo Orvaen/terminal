@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/Orvaen/terminal/internal/ui"
 )
 
 const alpineReleases = "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/%s/"
@@ -114,10 +116,13 @@ func downloadAlpine(dir string) (string, error) {
 		return "", err
 	}
 	h := sha256.New()
-	if _, err := io.Copy(io.MultiWriter(out, h), img.Body); err != nil {
+	bar := ui.NewBar(rel.File, img.ContentLength)
+	if _, err := io.Copy(io.MultiWriter(out, h, bar), img.Body); err != nil {
+		bar.Abort()
 		out.Close()
 		return "", fmt.Errorf("téléchargement d'Alpine : %w", err)
 	}
+	bar.Finish()
 	if err := out.Close(); err != nil {
 		return "", err
 	}

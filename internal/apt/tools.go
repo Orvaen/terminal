@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -167,7 +168,7 @@ func installExt(t extTool, onlyIfInstalled bool) int {
 		ui.Info(fmt.Sprintf("%s %s est déjà à jour.", t.Label, have))
 		return 0
 	}
-	ui.Info(fmt.Sprintf("Téléchargement de %s %s depuis %s…", t.Label, latest, strings.Split(t.Source, ",")[0]))
+	ui.Info(fmt.Sprintf("%s %s, depuis %s", t.Label, latest, strings.Split(t.Source, ",")[0]))
 
 	if t.inPlace {
 		// Poetry est un environnement virtuel Python : il ne supporte pas d'être déplacé.
@@ -290,10 +291,13 @@ func downloadVerified(url, dest, want string, h hash.Hash) error {
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(io.MultiWriter(f, h), resp.Body); err != nil {
+	bar := ui.NewBar(path.Base(url), resp.ContentLength)
+	if _, err := io.Copy(io.MultiWriter(f, h, bar), resp.Body); err != nil {
+		bar.Abort()
 		f.Close()
 		return fmt.Errorf("téléchargement : %w", err)
 	}
+	bar.Finish()
 	if err := f.Close(); err != nil {
 		return err
 	}

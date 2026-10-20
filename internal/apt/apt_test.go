@@ -13,6 +13,16 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 	var calls [][]string
 	oldW, oldA, oldOut := winget, wingetAvailable, stdout
 	oldSU, oldSC := selfUpdate, selfCheck
+	oldLines := wingetLines
+	wingetLines = func(args []string, onLine func(string)) (string, int) {
+		calls = append(calls, args)
+		for _, a := range args {
+			if c, ok := codes[a]; ok {
+				return "", c
+			}
+		}
+		return "", 0
+	}
 	oldSearch, oldAliasPath, oldInter := wingetSearchOutput, userAliasPath, interactive
 	oldTools, oldVswhere, oldVSI := toolsRoot, vswhere, runVSInstaller
 	vswhere = func(...string) string { return "" } // pas de Visual Studio, même sur la CI Windows
@@ -39,6 +49,7 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 	t.Cleanup(func() {
 		winget, wingetAvailable, stdout = oldW, oldA, oldOut
 		selfUpdate, selfCheck = oldSU, oldSC
+		wingetLines = oldLines
 		wingetSearchOutput, userAliasPath, interactive = oldSearch, oldAliasPath, oldInter
 		toolsRoot, vswhere, runVSInstaller = oldTools, oldVswhere, oldVSI
 	})
