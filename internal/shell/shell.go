@@ -35,6 +35,10 @@ type Shell struct {
 	prevDir string // pour « cd - »
 	exiting bool
 
+	edit        *editor         // saisie touche par touche (nil : saisie par ligne)
+	installed   func() []string // logiciels installés, pour la complétion de « apt remove »
+	historyPath string
+
 	lastInterrupt atomic.Int64
 }
 
@@ -51,6 +55,19 @@ func New() *Shell {
 	// Dans le shell, l'exécutable est terminal.exe : on relance donc « terminal -c "apt ..." ».
 	apt.Elevate = func(args ...string) int {
 		return platform.RunSelfElevated("-c", "apt "+joinArgs(args))
+	}
+	s.installed = func() []string { return apt.InstalledNames(4 * time.Second) }
+	if restore, ok := platform.EnableRawInput(); ok {
+		restore()
+		s.edit = &editor{
+			in:       s.in,
+			out:      s.out,
+			width:    s.width,
+			complete: s.complete,
+			onChange: prefetchForLine,
+		}
+		s.historyPath = historyFile()
+		s.edit.history = loadHistory(s.historyPath)
 	}
 	return s
 }
@@ -83,7 +100,25 @@ func (s *Shell) Interactive() int {
 	}()
 
 	for !s.exiting {
-		fmt.Fprint(s.out, s.prompt())
+		fmt.Fprint(s.out, s.promptHeader())
+		if s.edit != nil {
+			if restore, ok := platform.EnableRawInput(); ok {
+				line, err := s.edit.readLine(s.promptTail())
+				restore()
+				switch {
+				case errors.Is(err, errInterrupted):
+					s.last = 130
+					continue
+				case errors.Is(err, io.EOF):
+					return s.last
+				}
+				s.remember(line)
+				s.run(line)
+				continue
+			}
+		}
+		tail, _ := s.promptTail()
+		fmt.Fprint(s.out, tail)
 		line, err := s.in.ReadString('\n')
 		if err != nil {
 			time.Sleep(100 * time.Millisecond)
@@ -97,9 +132,29 @@ func (s *Shell) Interactive() int {
 				return s.last
 			}
 		}
-		s.RunLine(strings.TrimRight(line, "\r\n"))
+		s.run(strings.TrimRight(line, "\r\n"))
 	}
 	return s.last
+}
+
+// run exécute une ligne tapée ; une commande apt peut avoir changé les logiciels installés.
+func (s *Shell) run(line string) {
+	s.RunLine(line)
+	if strings.Contains(strings.ToLower(line), "apt") {
+		apt.InvalidateInstalled()
+	}
+}
+
+// promptHeader : la ligne d'information au-dessus de la saisie (utilisateur, PC, dossier).
+func (s *Shell) promptHeader() string {
+	full := s.prompt()
+	return full[:strings.LastIndex(full, "\n")+1]
+}
+
+// promptTail : le « $ » de la ligne de saisie et sa largeur visible.
+func (s *Shell) promptTail() (string, int) {
+	full := s.prompt()
+	return full[strings.LastIndex(full, "\n")+1:], 2
 }
 
 func (s *Shell) prompt() string {

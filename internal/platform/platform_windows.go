@@ -68,6 +68,31 @@ func EnableVirtualTerminal() bool {
 	return r != 0
 }
 
+const (
+	enableProcessedInput       = 0x0001
+	enableLineInput            = 0x0002
+	enableEchoInput            = 0x0004
+	enableVirtualTerminalInput = 0x0200
+)
+
+// EnableRawInput passe la console en saisie touche par touche (avec séquences VT pour les flèches).
+// Renvoie la fonction qui rétablit le mode d'origine, ou ok=false si l'entrée n'est pas une console.
+func EnableRawInput() (restore func(), ok bool) {
+	h, err := syscall.GetStdHandle(syscall.STD_INPUT_HANDLE)
+	if err != nil {
+		return nil, false
+	}
+	var mode uint32
+	if r, _, _ := procGetConsoleMode.Call(uintptr(h), uintptr(unsafe.Pointer(&mode))); r == 0 {
+		return nil, false
+	}
+	raw := mode&^(enableProcessedInput|enableLineInput|enableEchoInput) | enableVirtualTerminalInput
+	if r, _, _ := procSetConsoleMode.Call(uintptr(h), uintptr(raw)); r == 0 {
+		return nil, false
+	}
+	return func() { procSetConsoleMode.Call(uintptr(h), uintptr(mode)) }, true
+}
+
 // TerminalWidth renvoie la largeur visible de la console (80 par défaut).
 func TerminalWidth() int {
 	h, err := syscall.GetStdHandle(syscall.STD_OUTPUT_HANDLE)

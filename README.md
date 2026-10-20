@@ -19,7 +19,7 @@ $ sudo apt full-upgrade
 
 ## Fonctionnalités
 
-- **Commandes Linux** : `ls`, `cd`, `cat`, `rm`, `cp`, `mv`, `mkdir -p`, enchaînements `&&` et `||`.
+- **Commandes Linux** : `ls`, `cd`, `cat`, `rm`, `cp`, `mv`, `mkdir -p`, enchaînements `&&` et `||`, complétion avec Tab.
 - **apt** : installe et met à jour tes logiciels via winget, et Windows via Windows Update.
 - **sudo** : lance une commande en administrateur.
 - **Docker léger** : le vrai Docker Engine sans Docker Desktop, qui s'éteint tout seul quand il ne sert pas.

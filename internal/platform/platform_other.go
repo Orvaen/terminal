@@ -27,6 +27,9 @@ func TerminalWidth() int {
 // IsHidden : hors Windows, seuls les noms commençant par un point sont cachés (géré par l'appelant).
 func IsHidden(fs.FileInfo) bool { return false }
 
+// EnableRawInput : la saisie touche par touche n'est gérée que sous Windows (repli sur la saisie par ligne).
+func EnableRawInput() (restore func(), ok bool) { return nil, false }
+
 // NativeSudoInline : le sudo de Windows n'existe pas ici.
 func NativeSudoInline() bool { return false }
 

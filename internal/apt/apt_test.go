@@ -141,3 +141,17 @@ func TestDockerBypassesWinget(t *testing.T) {
 		t.Fatalf("appels winget %v, attendu %v", *calls, wantWinget)
 	}
 }
+
+func TestInstalledNamesFromWingetExport(t *testing.T) {
+	ids, err := parseExport([]byte(`{"$schema":"https://aka.ms/winget-packages.schema.2.0.json",
+ "Sources":[{"Packages":[{"PackageIdentifier":"Git.Git"},{"PackageIdentifier":"Spotify.Spotify"},
+ {"PackageIdentifier":"OpenJS.NodeJS.LTS"}],"SourceDetails":{"Name":"winget"}}],"WinGetVersion":"1.9"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := namesFromIDs(ids, true)
+	want := []string{"git", "node", "nodejs", "docker", "Git.Git", "OpenJS.NodeJS.LTS", "Spotify.Spotify"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("obtenu %q\nattendu %q", got, want)
+	}
+}

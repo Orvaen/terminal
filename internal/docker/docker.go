@@ -363,3 +363,9 @@ func Uninstall(yes bool) int {
 	ui.Info("Docker léger est désinstallé.")
 	return 0
 }
+
+// Subcommands : sous-commandes docker proposées par la complétion (Tab).
+var Subcommands = []string{
+	"run", "ps", "images", "pull", "push", "build", "compose", "exec", "logs", "stop", "start",
+	"restart", "rm", "rmi", "inspect", "network", "volume", "system", "login", "engine",
+}

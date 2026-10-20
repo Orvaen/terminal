@@ -19,7 +19,36 @@ $
 | `~/projets/site` | Le dossier courant ; `~` est ton dossier personnel, les `\` deviennent `/` |
 | `$` | Prêt. Devient `#` en administrateur, et passe en rouge si la dernière commande a échoué |
 
-L'historique fonctionne avec les flèches ↑ et ↓, et F7 affiche la liste des commandes précédentes.
+## Saisie et complétion
+
+**Tab** complète le mot en cours. S'il y a plusieurs possibilités, il complète la partie commune ; un second **Tab**
+les affiche toutes.
+
+| Après | Tab propose |
+|---|---|
+| le début de la ligne | les commandes intégrées et les programmes du PATH |
+| `apt` | les sous-commandes (`install`, `remove`, `upgrade`…) |
+| `apt remove`, `purge`, `upgrade`, `show` | les logiciels installés : noms courts (`node`) et identifiants winget (`Spotify.Spotify`) |
+| `apt install` | les noms courts connus (`git`, `node`, `docker`…) |
+| `docker`, `docker engine`, `docker compose` | leurs sous-commandes |
+| `cd`, `rmdir` | les dossiers |
+| tout le reste | les fichiers et dossiers ; un nom avec une espace est mis entre guillemets |
+
+La liste des logiciels installés est lue auprès de winget dès que tu commences à taper `apt`, puis gardée
+quelques minutes. Seuls les logiciels que winget connaît y figurent.
+
+| Touche | Effet |
+|---|---|
+| ← → , Ctrl+← Ctrl+→ | Déplace le curseur d'un caractère, d'un mot |
+| Début, Fin (ou Ctrl+A, Ctrl+E) | Début, fin de la ligne |
+| ↑ ↓ | Commandes précédentes, gardées d'une session à l'autre |
+| Ctrl+W, Ctrl+U, Ctrl+K | Efface le mot précédent, le début, la fin de la ligne |
+| Échap | Efface la ligne |
+| Ctrl+L | Efface l'écran |
+| Ctrl+C | Abandonne la ligne en cours |
+| Ctrl+D (ligne vide) | Quitte le terminal |
+
+Une ligne qui commence par une espace n'est pas gardée dans l'historique.
 
 ## Commandes intégrées
 
@@ -96,5 +125,4 @@ Exécute la ligne puis quitte, avec le code de sortie de la dernière commande. 
 
 ## Limites actuelles
 
-- Pas encore de complétion avec Tab.
 - Pas de variables façon Linux (`$HOME`) : une ligne qui contient `$` est confiée à PowerShell, qui utilise `$env:HOME`.
