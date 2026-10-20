@@ -14,7 +14,9 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 	oldW, oldA, oldOut := winget, wingetAvailable, stdout
 	oldSU, oldSC := selfUpdate, selfCheck
 	oldSearch, oldAliasPath, oldInter := wingetSearchOutput, userAliasPath, interactive
-	oldTools := toolsRoot
+	oldTools, oldVswhere, oldVSI := toolsRoot, vswhere, runVSInstaller
+	vswhere = func(...string) string { return "" } // pas de Visual Studio, même sur la CI Windows
+	runVSInstaller = func(...string) int { t.Error("installeur de Visual Studio lancé sans le demander"); return 1 }
 	toolsDir := t.TempDir()
 	toolsRoot = func() string { return toolsDir }
 	aliasFile := filepath.Join(t.TempDir(), "paquets.json")
@@ -38,7 +40,7 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 		winget, wingetAvailable, stdout = oldW, oldA, oldOut
 		selfUpdate, selfCheck = oldSU, oldSC
 		wingetSearchOutput, userAliasPath, interactive = oldSearch, oldAliasPath, oldInter
-		toolsRoot = oldTools
+		toolsRoot, vswhere, runVSInstaller = oldTools, oldVswhere, oldVSI
 	})
 	return &calls
 }

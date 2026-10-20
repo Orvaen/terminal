@@ -235,6 +235,9 @@ func cmdInstall(pkgs []string, yes bool) int {
 		if buildEssentialNames[strings.ToLower(p)] {
 			return installBuildEssential()
 		}
+		if spectreNames[strings.ToLower(p)] {
+			return installSpectre()
+		}
 		if note, ok := windowsNotes[strings.ToLower(p)]; ok {
 			if _, mine := userAlias(p); !mine {
 				ui.Info("Rien à installer : " + note)

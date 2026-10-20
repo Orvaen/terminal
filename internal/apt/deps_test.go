@@ -24,9 +24,9 @@ func TestDepsInstallInstallsMissingToolsThenProjectDeps(t *testing.T) {
 	dockerInstalled = func() bool { return false }
 	refreshPath = func() {}
 	var ran []string
-	runStep = func(dir string, args []string) int {
+	runStep = func(dir string, args []string) (int, string) {
 		ran = append(ran, filepath.Base(dir)+": "+strings.Join(args, " "))
-		return 0
+		return 0, ""
 	}
 
 	if code := Run([]string{"deps", "install", root, "-y"}); code != 0 {
@@ -70,7 +70,7 @@ func TestDepsInstallSkipsCIOnlyToolsUnlessAsked(t *testing.T) {
 	t.Cleanup(func() { deps.LookPath, refreshPath, runStep, msvcInstalled = oldLook, oldRefresh, oldStep, oldMSVC })
 	deps.LookPath = func(string) (string, error) { return "", errors.New("absent") }
 	refreshPath = func() {}
-	runStep = func(string, []string) int { return 0 }
+	runStep = func(string, []string) (int, string) { return 0, "" }
 	msvcInstalled = func() bool { return false }
 
 	Run([]string{"deps", "install", root, "-y"})

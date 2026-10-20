@@ -578,28 +578,3 @@ func poetryRemove(dir string) {
 func extToolPython() (string, bool) {
 	return extTool{Needs: []string{"python", "py"}}.requirement()
 }
-
-// ---------------------------------------------------------------------------
-// build-essential : MSVC
-
-// buildEssentialNames : les noms qui installent le compilateur MSVC.
-var buildEssentialNames = map[string]bool{
-	"build-essential": true, "msvc": true, "buildtools": true, "vs-buildtools": true,
-	"visual-studio-build-tools": true, "visualcpp-build-tools": true,
-}
-
-const msvcID = "Microsoft.VisualStudio.BuildTools"
-
-// installBuildEssential installe les Build Tools de Visual Studio avec la charge de travail C++
-// (compilateur cl, SDK Windows, CMake), ce qu'un simple « winget install » ne coche pas.
-func installBuildEssential() int {
-	ui.Info("build-essential → " + msvcID + " avec la charge de travail « Développement Desktop en C++ »")
-	ui.Info("Le téléchargement fait plusieurs Go ; Windows demandera une confirmation (UAC).")
-	code := winget("install", "--id", msvcID, "--exact", acceptSource, acceptPackage,
-		"--override", "--wait --passive --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended")
-	if code == 0 {
-		ui.Info("cl.exe s'utilise depuis « Developer PowerShell for VS » ; CMake trouve MSVC tout seul.")
-		ui.Info("Pour gcc dans le terminal : apt install gcc")
-	}
-	return code
-}

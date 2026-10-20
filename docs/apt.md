@@ -185,7 +185,17 @@ Pour compiler du C ou du C++ :
 | Paquet | Ce qui est installé |
 |---|---|
 | `gcc`, `g++`, `gdb` | GCC de [WinLibs](https://winlibs.com/) (MinGW-w64), avec gdb et CMake, utilisables tout de suite dans le terminal |
-| `build-essential` (ou `msvc`) | Le compilateur MSVC de Microsoft : les Build Tools de Visual Studio, **avec la charge de travail C++ déjà cochée**. `cl` s'utilise depuis « Developer PowerShell for VS », et CMake le trouve tout seul |
+| `build-essential` (ou `msvc`) | Le compilateur MSVC de Microsoft : les Build Tools de Visual Studio, **avec la charge de travail C++ et les bibliothèques Spectre-mitigated déjà cochées**. `cl` s'utilise depuis « Developer PowerShell for VS », et CMake et node-gyp le trouvent tout seuls |
+| `msvc-spectre` | Ajoute les bibliothèques Spectre-mitigated à un MSVC déjà installé (voir plus bas) |
+
+Tu n'as jamais besoin d'ouvrir Visual Studio Installer : `apt` le pilote en ligne de commande.
+
+**Les bibliothèques « Spectre-mitigated »** sont les versions du runtime C++ de MSVC compilées avec la protection
+contre la faille Spectre (option `/Qspectre`). Elles ne sont pas installées par défaut avec Visual Studio, et un
+projet qui active la protection (VS Code et ses modules natifs, par exemple) échoue sans elles avec l'erreur
+`MSB8040: Spectre-mitigated libraries are required for this project`. `apt install build-essential` les inclut ;
+pour un MSVC installé autrement, `apt install msvc-spectre` les ajoute. Et si `npm ci` échoue avec MSB8040
+pendant `apt deps install`, `apt` l'explique, installe les bibliothèques et relance l'étape tout seul.
 
 Certains paquets Linux n'ont rien à installer sous Windows (`ssh`, `tree`, `tar`, `zip`…) : `apt` l'explique au lieu
 d'installer autre chose.

@@ -26,7 +26,8 @@ et leur dossier est ajouté à ton PATH. `apt upgrade` les met à jour, `apt rem
 | `maven`, `mvn`, `apache-maven` | Maven | Apache (dernière version stable), somme SHA-512 vérifiée | `java` |
 | `gradle` | Gradle | services.gradle.org, somme SHA-256 vérifiée | `java` |
 | `poetry`, `python3-poetry`, `python-poetry` | Poetry | installeur officiel install.python-poetry.org | `python` |
-| `build-essential`, `buildtools`, `msvc`, `visual-studio-build-tools`, `visualcpp-build-tools`, `vs-buildtools` | Compilateur C/C++ MSVC : `Microsoft.VisualStudio.BuildTools` avec la charge de travail « Développement Desktop en C++ » | winget | |
+| `build-essential`, `buildtools`, `msvc`, `visual-studio-build-tools`, `visualcpp-build-tools`, `vs-buildtools` | Compilateur C/C++ MSVC : `Microsoft.VisualStudio.BuildTools` avec la charge de travail « Développement Desktop en C++ » et les bibliothèques Spectre-mitigated | winget | |
+| `msvc-spectre`, `spectre`, `spectre-libs`, `vc-spectre` | Bibliothèques Spectre-mitigated, ajoutées à un MSVC déjà installé | installeur de Visual Studio, en ligne de commande | MSVC (sinon installé avec) |
 
 ## Déjà dans Windows
 

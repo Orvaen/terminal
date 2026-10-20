@@ -6,6 +6,7 @@ package apt
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,18 +20,22 @@ import (
 // Remplacées dans les tests.
 var (
 	refreshPath = refreshPathFromRegistry
-	runStep     = func(dir string, args []string) int {
+	// runStep lance une commande du projet (npm ci…) : sa sortie s'affiche normalement, et la fin
+	// est gardée pour reconnaître les erreurs qu'apt sait corriger (MSB8040).
+	runStep = func(dir string, args []string) (int, string) {
+		tail := &tailBuffer{max: 256 << 10}
 		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Dir = dir
-		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+		cmd.Stdin = os.Stdin
+		cmd.Stdout, cmd.Stderr = io.MultiWriter(os.Stdout, tail), io.MultiWriter(os.Stderr, tail)
 		if err := cmd.Run(); err != nil {
 			if ee, ok := err.(*exec.ExitError); ok {
-				return ee.ExitCode()
+				return ee.ExitCode(), tail.String()
 			}
 			ui.Errorf("impossible de lancer %s : %v", args[0], err)
-			return 127
+			return 127, ""
 		}
-		return 0
+		return 0, tail.String()
 	}
 	confirm = func(question string) bool {
 		fmt.Fprint(stdout, question+" [O/n] ")
@@ -42,17 +47,6 @@ var (
 		return false
 	}
 )
-
-// msvcInstalled : les Build Tools ou Visual Studio avec le compilateur C++, d'après vswhere.
-var msvcInstalled = func() bool {
-	vswhere := filepath.Join(os.Getenv("ProgramFiles(x86)"), "Microsoft Visual Studio", "Installer", "vswhere.exe")
-	if os.Getenv("ProgramFiles(x86)") == "" {
-		return false
-	}
-	out, err := exec.Command(vswhere, "-latest", "-products", "*",
-		"-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath").Output()
-	return err == nil && strings.TrimSpace(string(out)) != ""
-}
 
 // cmdDeps : apt deps [install] [dossier]. install force le mode installation (apt build-dep).
 func cmdDeps(args []string, install, yes bool) int {
@@ -172,7 +166,7 @@ func cmdDeps(args []string, install, yes bool) int {
 			for _, s := range steps {
 				ui.Step(s.Label + " dans " + s.Dir)
 				for _, args := range s.Args {
-					if c := runStep(filepath.Join(proj.Root, filepath.FromSlash(s.Dir)), args); c != 0 {
+					if c := runProjectStep(filepath.Join(proj.Root, filepath.FromSlash(s.Dir)), args, yes); c != 0 {
 						ui.Errorf("« %s » a échoué (code %d)", strings.Join(args, " "), c)
 						if code == 0 {
 							code = c
@@ -195,6 +189,45 @@ func cmdDeps(args []string, install, yes bool) int {
 	}
 	return code
 }
+
+// runProjectStep lance une étape et corrige ce qu'apt sait corriger : si la compilation d'un module
+// natif réclame les bibliothèques Spectre-mitigated de MSVC (MSB8040), apt les installe et relance.
+func runProjectStep(dir string, args []string, yes bool) int {
+	code, out := runStep(dir, args)
+	if code == 0 || !isMSB8040(out) {
+		return code
+	}
+	fmt.Fprintln(stdout)
+	ui.Warn("la compilation demande les bibliothèques « Spectre-mitigated » de MSVC (erreur MSB8040).")
+	ui.Info("Ce sont les versions du runtime C++ compilées avec la protection contre la faille Spectre ;")
+	ui.Info("elles ne sont pas installées par défaut avec Visual Studio. apt peut les ajouter pour toi.")
+	if !yes && interactive() && !confirm("Les installer, puis relancer « "+strings.Join(args, " ")+" » ?") {
+		ui.Info("Pour le faire plus tard : apt install msvc-spectre")
+		return code
+	}
+	if c := installSpectre(); c != 0 {
+		return code
+	}
+	ui.Step("Nouvel essai : " + strings.Join(args, " "))
+	code, _ = runStep(dir, args)
+	return code
+}
+
+// tailBuffer garde les derniers octets écrits.
+type tailBuffer struct {
+	max int
+	buf []byte
+}
+
+func (t *tailBuffer) Write(p []byte) (int, error) {
+	t.buf = append(t.buf, p...)
+	if len(t.buf) > t.max {
+		t.buf = t.buf[len(t.buf)-t.max:]
+	}
+	return len(p), nil
+}
+
+func (t *tailBuffer) String() string { return string(t.buf) }
 
 // printAdvice : ce qu'apt ne fait pas à ta place, et comment le faire.
 func printAdvice(statuses []deps.Status) {

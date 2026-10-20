@@ -81,7 +81,13 @@ et leur dossier est ajouté à ton PATH. `+"`apt upgrade`"+` les met à jour, `+
 	sort.Slice(be, func(i, j int) bool {
 		return be[i] == "build-essential" || (be[j] != "build-essential" && be[i] < be[j])
 	})
-	fmt.Fprintf(&b, "| %s | Compilateur C/C++ MSVC : `%s` avec la charge de travail « Développement Desktop en C++ » | winget | |\n", code(be), msvcID)
+	fmt.Fprintf(&b, "| %s | Compilateur C/C++ MSVC : `%s` avec la charge de travail « Développement Desktop en C++ » et les bibliothèques Spectre-mitigated | winget | |\n", code(be), msvcID)
+	var sp []string
+	for n := range spectreNames {
+		sp = append(sp, n)
+	}
+	sort.Slice(sp, func(i, j int) bool { return sp[i] == "msvc-spectre" || (sp[j] != "msvc-spectre" && sp[i] < sp[j]) })
+	fmt.Fprintf(&b, "| %s | Bibliothèques Spectre-mitigated, ajoutées à un MSVC déjà installé | installeur de Visual Studio, en ligne de commande | MSVC (sinon installé avec) |\n", code(sp))
 
 	b.WriteString("\n## Déjà dans Windows\n\nPour ces paquets, `apt` explique l'équivalent au lieu d'installer autre chose.\n\n| Nom | Ce qu'apt répond |\n|---|---|\n")
 	var notes []string
