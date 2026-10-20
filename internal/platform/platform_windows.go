@@ -126,16 +126,28 @@ func TerminalHeight() int {
 	return 24
 }
 
-var procGetUserDefaultLocaleName = kernel32.NewProc("GetUserDefaultLocaleName")
+var (
+	procGetUserDefaultLocaleName = kernel32.NewProc("GetUserDefaultLocaleName")
+	procGetUserDefaultUILanguage = kernel32.NewProc("GetUserDefaultUILanguage")
+	procLCIDToLocaleName         = kernel32.NewProc("LCIDToLocaleName")
+)
 
-// Locale : la langue choisie dans Windows au format de LANG (« fr-BE » → « fr_BE »), « C » si inconnue.
+// Locale : la langue d'affichage de Windows au format de LANG (« fr-FR » → « fr_FR »), « C » si inconnue.
+// La langue d'affichage (celle des menus) passe avant le format régional (dates, nombres), qui peut
+// être réglé sur un autre pays : c'est elle que LANG désigne pour les messages des programmes.
 func Locale() string {
 	buf := make([]uint16, 85) // LOCALE_NAME_MAX_LENGTH
-	r, _, _ := procGetUserDefaultLocaleName.Call(uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
-	if r == 0 {
-		return "C"
+	name := ""
+	if lang, _, _ := procGetUserDefaultUILanguage.Call(); lang != 0 {
+		if r, _, _ := procLCIDToLocaleName.Call(lang, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)), 0); r != 0 {
+			name = syscall.UTF16ToString(buf)
+		}
 	}
-	name := syscall.UTF16ToString(buf)
+	if name == "" {
+		if r, _, _ := procGetUserDefaultLocaleName.Call(uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf))); r != 0 {
+			name = syscall.UTF16ToString(buf)
+		}
+	}
 	if name == "" {
 		return "C"
 	}

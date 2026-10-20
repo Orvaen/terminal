@@ -193,3 +193,21 @@ func TestTabReq(t *testing.T) {
 		t.Errorf("req liste : %q", got)
 	}
 }
+
+func TestEditorBracketedPaste(t *testing.T) {
+	s := &Shell{}
+	paste := "\x1b[200~echo \"$USER\"\r\n\r\n# commentaire\r\nf=a.pdf; echo ${f%.*}\r\nnpm ci &&\r\n  npm test\r\nmake \\\r\n  all\r\n\x1b[201~"
+	got, _, err := readWith(t, s, "X "+paste+"\r")
+	want := `X echo "$USER"; f=a.pdf; echo ${f%.*}; npm ci && npm test; make  all`
+	if err != nil || got != want {
+		t.Fatalf("obtenu %q (%v), attendu %q", got, err, want)
+	}
+	// sans collage encadré (vieille console), chaque ligne reste lancée l'une après l'autre
+	in := bufio.NewReader(strings.NewReader("un\rdeux\r"))
+	e := &editor{in: in, out: io.Discard, width: func() int { return 80 }}
+	a, _ := e.readLine("$ ", 2)
+	b, _ := e.readLine("$ ", 2)
+	if a != "un" || b != "deux" {
+		t.Fatalf("%q %q", a, b)
+	}
+}

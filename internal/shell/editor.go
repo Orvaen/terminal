@@ -38,6 +38,10 @@ func (e *editor) readLine(prompt string, promptWidth int) (string, error) {
 		lastTab bool
 	)
 	e.row = 0
+	// Collage « encadré » : le terminal (Windows Terminal…) entoure ce qui est collé de ESC[200~ … ESC[201~,
+	// pour qu'un collage de plusieurs lignes ne lance pas chaque ligne au fur et à mesure.
+	fmt.Fprint(e.out, "\x1b[?2004h")
+	defer fmt.Fprint(e.out, "\x1b[?2004l")
 	e.render(prompt, promptWidth, buf, pos)
 
 	finish := func(suffix string) {
@@ -178,6 +182,10 @@ func (e *editor) escape(buf []rune, pos int) ([]rune, int, int) {
 		pos = len(buf)
 	case '~':
 		switch p {
+		case "200": // début d'un collage
+			text := []rune(joinPastedLines(e.readPaste()))
+			buf = append(buf[:pos], append(text, buf[pos:]...)...)
+			pos += len(text)
 		case "1", "7":
 			pos = 0
 		case "4", "8":
@@ -189,6 +197,60 @@ func (e *editor) escape(buf []rune, pos int) ([]rune, int, int) {
 		}
 	}
 	return buf, pos, 0
+}
+
+// readPaste lit ce qui est collé, jusqu'à ESC[201~.
+func (e *editor) readPaste() string {
+	const end = "\x1b[201~"
+	var b strings.Builder
+	for {
+		r, _, err := e.in.ReadRune()
+		if err != nil {
+			return b.String()
+		}
+		b.WriteRune(r)
+		if r == '~' && strings.HasSuffix(b.String(), end) {
+			return strings.TrimSuffix(b.String(), end)
+		}
+	}
+}
+
+// joinPastedLines met un collage de plusieurs lignes sur une seule, comme une suite de commandes :
+// les lignes sont reliées par « ; », sauf après && || | ; ou \ (suite de la même commande).
+// Les lignes vides et les commentaires (#) sont ignorés. Rien n'est lancé avant Entrée.
+func joinPastedLines(text string) string {
+	text = strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\r", "\n")
+	var b strings.Builder
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.ReplaceAll(line, "\t", " ")
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if b.Len() == 0 {
+			b.WriteString(strings.TrimRight(line, " "))
+			continue
+		}
+		prev := strings.TrimRight(b.String(), " ")
+		switch {
+		case strings.HasSuffix(prev, "\\"):
+			b.Reset()
+			b.WriteString(strings.TrimSuffix(prev, "\\"))
+			b.WriteString(" " + trimmed)
+		case strings.HasSuffix(prev, "&&"), strings.HasSuffix(prev, "||"), strings.HasSuffix(prev, "|"),
+			strings.HasSuffix(prev, ";"):
+			b.WriteString(" " + trimmed)
+		default:
+			b.WriteString("; " + trimmed)
+		}
+	}
+	// les autres caractères de contrôle ne s'insèrent pas
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 {
+			return -1
+		}
+		return r
+	}, b.String())
 }
 
 func wordLeft(buf []rune, pos int) int {
