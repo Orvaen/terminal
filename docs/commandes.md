@@ -67,6 +67,7 @@ les affiche toutes.
 | `docker`, `docker engine`, `docker compose` | leurs sous-commandes |
 | `run` | les scripts de `terminal.json` |
 | `prompt` | les styles de prompt |
+| `path` | ses sous-commandes ; après `path qui`, les commandes |
 | `cd`, `rmdir` | les dossiers |
 | tout le reste | les fichiers et dossiers ; un nom avec une espace est mis entre guillemets |
 
@@ -208,6 +209,41 @@ touche pas.
 > utilisé ; `apt install make` installe un GNU Make récent.
 
 Pour désactiver ce comportement : variable d'environnement `ORVAEN_NO_UNIX_TOOLS=1`.
+
+## Ranger le PATH : path
+
+Quand deux programmes portent le même nom (deux `make.exe`, deux `python.exe`), c'est le premier dossier du PATH
+qui gagne. Un vieux logiciel peut ainsi passer devant sans prévenir : le GNU Make 3.82 de Free Pascal devant un make
+récent, par exemple.
+
+```text
+$ path qui make
+→  1. C:\FPC\3.2.2\bin\i386-Win32\make.exe
+      GNU Make 3.82
+   2. C:\Users\dev\AppData\Local\Microsoft\WinGet\Links\make.exe
+      GNU Make 4.4.1
+
+C'est le n°1 qui est utilisé. Pour utiliser le n°2 : path monter make 2
+```
+
+| Commande | Effet |
+|---|---|
+| `path` | Les dossiers du PATH, dans l'ordre, avec leur origine (Windows système, utilisateur, ajouté par le terminal), les doublons et les dossiers disparus |
+| `path qui <commande>` | Toutes les versions d'un programme, avec leur version ; la première gagne |
+| `path conflits` | Les outils de développement présents en plusieurs versions (make, python, node, gcc, java…) |
+| `path monter <n°\|dossier>` | Met ce dossier en tête |
+| `path monter <commande> <n°>` | Met en tête le dossier de cette version : `path monter make 2` |
+| `path masquer <n°\|dossier>` | Retire ce dossier |
+| `path reset` | Oublie l'ordre choisi |
+| `path nettoyer [-y]` | Retire de Windows les doublons et les dossiers disparus, après confirmation |
+
+`monter` et `masquer` changent l'ordre **pour le terminal et les programmes qu'il lance** (make, npm, scripts
+`run`…), sans toucher à Windows ni demander de droits. Le choix est enregistré dans `terminal-config.json` et
+appliqué à chaque nouvelle fenêtre, après les ajouts du terminal (Coreutils, outils de Git).
+
+`path nettoyer` modifie le PATH de Windows : le PATH utilisateur, et aussi le PATH système avec
+`sudo path nettoyer`. Une entrée du PATH utilisateur déjà présente dans le PATH système compte comme un doublon.
+Les variables comme `%SystemRoot%` ou `%USERPROFILE%` sont gardées telles quelles.
 
 ## sudo
 

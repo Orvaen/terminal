@@ -5,6 +5,7 @@ package platform
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -185,31 +186,71 @@ func KillTree(p *os.Process) error {
 // en cours ne le voit pas encore.
 func RegistryPathDirs() []string {
 	var dirs []string
-	for _, key := range []string{
-		`HKCU\Environment`,
-		`HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment`,
-	} {
-		cmd := exec.Command("reg", "query", key, "/v", "Path")
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		out, err := cmd.Output()
-		if err != nil {
-			continue
-		}
-		for _, line := range strings.Split(string(out), "\n") {
-			fields := strings.Fields(line)
-			if len(fields) < 3 || !strings.EqualFold(fields[0], "Path") {
-				continue
-			}
-			// « Path    REG_EXPAND_SZ    valeur avec espaces »
-			idx := strings.Index(line, fields[1]) + len(fields[1])
-			for _, d := range strings.Split(strings.TrimSpace(line[idx:]), ";") {
-				if d = strings.TrimSpace(expandPercent(d)); d != "" {
-					dirs = append(dirs, d)
-				}
-			}
+	for _, scope := range []string{"user", "system"} {
+		for _, e := range RegistryPath(scope) {
+			dirs = append(dirs, e.Dir)
 		}
 	}
 	return dirs
+}
+
+// PathEntry : un dossier du PATH enregistré dans Windows, tel qu'écrit (%SystemRoot%\…) et développé.
+type PathEntry struct {
+	Raw string
+	Dir string
+}
+
+var pathKeys = map[string]string{
+	"user":   `HKCU\Environment`,
+	"system": `HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment`,
+}
+
+// RegistryPath lit le PATH « user » ou « system » tel qu'il est enregistré (sans développer les
+// variables : « reg query » affiche la valeur brute).
+func RegistryPath(scope string) []PathEntry {
+	cmd := exec.Command("reg", "query", pathKeys[scope], "/v", "Path")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	var entries []PathEntry
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 3 || !strings.EqualFold(fields[0], "Path") {
+			continue
+		}
+		// « Path    REG_EXPAND_SZ    valeur avec espaces »
+		idx := strings.Index(line, fields[1]) + len(fields[1])
+		for _, raw := range strings.Split(strings.TrimSpace(line[idx:]), ";") {
+			if raw = strings.TrimSpace(raw); raw != "" {
+				entries = append(entries, PathEntry{Raw: raw, Dir: expandPercent(raw)})
+			}
+		}
+	}
+	return entries
+}
+
+// WritePath remplace le PATH « user » ou « system » (droits administrateur pour system) par ces
+// entrées brutes. La valeur reste de type REG_EXPAND_SZ, pour garder %SystemRoot% & co, et Windows
+// est prévenu du changement (les fenêtres ouvertes ensuite le voient).
+func WritePath(scope string, raw []string) error {
+	key := map[string]string{
+		"user":   `HKCU:\Environment`,
+		"system": `HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment`,
+	}[scope]
+	target := map[string]string{"user": "User", "system": "Machine"}[scope]
+	script := `$ErrorActionPreference = 'Stop'; ` +
+		`Set-ItemProperty -Path ` + psQuote(key) + ` -Name Path -Type ExpandString -Value ` + psQuote(strings.Join(raw, ";")) + `; ` +
+		// Une variable temporaire posée puis retirée fait diffuser le changement à Windows (WM_SETTINGCHANGE).
+		`[Environment]::SetEnvironmentVariable('ORVAEN_PATH_REFRESH', '1', '` + target + `'); ` +
+		`[Environment]::SetEnvironmentVariable('ORVAEN_PATH_REFRESH', $null, '` + target + `')`
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("%v : %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 // expandPercent développe les %VARIABLES% de Windows.
@@ -267,23 +308,23 @@ func EnableUTF8Console() (restore func()) {
 	}
 }
 
-// AddUserPath ajoute dir au PATH de l'utilisateur (registre), pour les prochaines fenêtres.
+// AddUserPath ajoute dir à la fin du PATH de l'utilisateur, pour les prochaines fenêtres.
 func AddUserPath(dir string) error { return editUserPath(dir, true) }
 
 // RemoveUserPath retire dir du PATH de l'utilisateur.
 func RemoveUserPath(dir string) error { return editUserPath(dir, false) }
 
 func editUserPath(dir string, add bool) error {
-	op := `$e = $e | Where-Object { $_ -and $_.TrimEnd('\') -ine $d.TrimEnd('\') }`
-	if add {
-		op += `; $e += $d`
+	var raw []string
+	for _, e := range RegistryPath("user") {
+		if !SamePath(e.Dir, dir) {
+			raw = append(raw, e.Raw)
+		}
 	}
-	script := `$d = ` + psQuote(dir) + `; $p = [Environment]::GetEnvironmentVariable('Path', 'User'); ` +
-		`if (-not $p) { $p = '' }; $e = @($p -split ';'); ` + op + `; ` +
-		`[Environment]::SetEnvironmentVariable('Path', ($e -join ';'), 'User')`
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	return cmd.Run()
+	if add {
+		raw = append(raw, dir)
+	}
+	return WritePath("user", raw)
 }
 
 // FindInstalledExe cherche name.exe dans le dossier des programmes installés (ceux de « Applications

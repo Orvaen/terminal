@@ -28,3 +28,12 @@ func RefreshPath() bool {
 	os.Setenv("PATH", strings.Join(parts, string(os.PathListSeparator)))
 	return true
 }
+
+// SamePath compare deux dossiers comme Windows : sans tenir compte de la casse ni du \ final.
+func SamePath(a, b string) bool {
+	norm := func(p string) string {
+		p = strings.TrimRight(filepath.Clean(strings.TrimSpace(p)), `\/`)
+		return strings.ToLower(p)
+	}
+	return a != "" && b != "" && norm(a) == norm(b)
+}

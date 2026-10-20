@@ -5,6 +5,7 @@
 package platform
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"strconv"
@@ -53,3 +54,17 @@ func RemoveUserPath(dir string) error { return nil }
 
 // FindInstalledExe : hors Windows, pas de registre des programmes installés.
 func FindInstalledExe(name string) string { return "" }
+
+// PathEntry : un dossier du PATH enregistré dans Windows, tel qu'écrit et développé.
+type PathEntry struct {
+	Raw string
+	Dir string
+}
+
+// RegistryPath : hors Windows, pas de registre.
+func RegistryPath(scope string) []PathEntry { return nil }
+
+// WritePath : hors Windows, rien à écrire.
+func WritePath(scope string, raw []string) error { return errNotWindows }
+
+var errNotWindows = errors.New("disponible seulement sous Windows")
