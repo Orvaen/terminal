@@ -38,6 +38,30 @@ while kill -0 "$pid" 2>/dev/null; do
 done
 `
 
+// wslConfMarker identifie la version de /etc/wsl.conf écrite par le terminal.
+const wslConfMarker = "orvaen-wsl-conf-v1"
+
+// wslConf configure le montage des disques Windows (/mnt/c…) dans la machine Docker.
+//
+// L'option metadata permet à Linux d'enregistrer propriétaire et droits sur les fichiers Windows :
+// sans elle, tout appartient à root et un conteneur non-root qui fait chmod sur un fichier qu'il vient
+// de créer (npm ci, pip…) échoue avec « EPERM: operation not permitted ». umask/fmask à 000 laisse les
+// fichiers créés depuis Windows accessibles en écriture à tous les utilisateurs des conteneurs,
+// comme avec Docker Desktop.
+const wslConf = `# ` + wslConfMarker + ` : écrit par Orvaen Terminal, ne pas modifier
+[automount]
+enabled = true
+options = "metadata,umask=000,fmask=000"
+`
+
+// writeWSLConfScript écrit /etc/wsl.conf (pris en compte au prochain démarrage de la machine).
+const writeWSLConfScript = `cat > /etc/wsl.conf <<'ORVAEN_EOF'
+` + wslConf + `ORVAEN_EOF
+`
+
+// wslConfCheck réussit si /etc/wsl.conf est à jour.
+const wslConfCheck = `grep -qs '` + wslConfMarker + `' /etc/wsl.conf`
+
 // setupScript installe Docker Engine (sans interface) dans la machine Alpine.
 const setupScript = `set -e
 if ! grep -q '/community' /etc/apk/repositories; then
@@ -47,7 +71,7 @@ apk add --no-cache docker docker-cli-compose
 cat > /usr/local/bin/orvaen-dockerd <<'ORVAEN_EOF'
 ` + engineScript + `ORVAEN_EOF
 chmod +x /usr/local/bin/orvaen-dockerd
-`
+` + writeWSLConfScript
 
 // runningCheck : dockerd tourne et son socket est prêt.
 const runningCheck = `pgrep -x dockerd >/dev/null && test -S /var/run/docker.sock`

@@ -54,6 +54,7 @@ l'arrêt automatique), puis redémarre le moteur avec `docker engine stop`.
 | Situation | Ce qui se passe |
 |---|---|
 | Chemin Windows dans un volume | Converti automatiquement : `-v C:\projet:/app` devient `/mnt/c/projet:/app`, aussi dans `--mount source=…` |
+| Droits des fichiers Windows | Les disques Windows sont montés avec l'option `metadata` de WSL : un conteneur non-root peut créer des fichiers dans ton projet et changer leurs droits (`npm ci`, `pip install`…), comme avec Docker Desktop. Une machine déjà installée est mise à jour toute seule au prochain démarrage du moteur |
 | Port publié | `-p 8080:80` est accessible depuis Windows sur `localhost:8080` |
 | Dossier courant | La commande s'exécute dans ton dossier courant : `docker compose up` trouve ton `compose.yaml` |
 | Hors du terminal | `docker` marche aussi dans PowerShell, cmd et VS Code, grâce à `docker.exe` |
@@ -84,6 +85,7 @@ l'arrêt automatique), puis redémarre le moteur avec `docker engine stop`.
 |---|---|
 | `Docker n'est pas installé` | Lance `apt install docker` |
 | L'installation s'arrête après l'activation de WSL2 | C'est normal : redémarre le PC, puis relance `apt install docker` |
+| `EPERM: operation not permitted, chmod` dans un conteneur | Machine encore sur l'ancien montage : `docker engine stop`, puis relance ta commande |
 | `le moteur Docker ne répond pas` | Regarde `docker engine logs`, puis essaie `docker engine stop` et relance ta commande |
 | Tout recommencer | `apt remove docker -y`, puis `apt install docker` |
 

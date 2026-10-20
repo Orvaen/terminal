@@ -77,3 +77,15 @@ func TestSetupScriptEmbedsEngine(t *testing.T) {
 		t.Fatal("le script d'installation doit contenir le script du moteur et fermer le heredoc")
 	}
 }
+
+func TestWSLConfMetadata(t *testing.T) {
+	if !strings.Contains(wslConf, "metadata") || !strings.Contains(wslConf, wslConfMarker) {
+		t.Fatal("wsl.conf doit activer metadata et contenir le marqueur de version")
+	}
+	if !strings.Contains(setupScript, writeWSLConfScript) {
+		t.Fatal("l'installation doit écrire /etc/wsl.conf")
+	}
+	if !strings.HasSuffix(writeWSLConfScript, "\nORVAEN_EOF\n") {
+		t.Fatal("le heredoc de wsl.conf doit être fermé")
+	}
+}

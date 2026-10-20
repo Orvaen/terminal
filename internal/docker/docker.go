@@ -114,6 +114,7 @@ func ensureRunning() int {
 	if engineRunning() {
 		return 0
 	}
+	ensureWSLConf()
 	ui.Info("Démarrage du moteur Docker…")
 	if err := startDetached("wsl.exe", inDistro("/usr/local/bin/orvaen-dockerd"), wslEnv()); err != nil {
 		ui.Errorf("impossible de démarrer le moteur Docker : %v", err)
@@ -128,6 +129,21 @@ func ensureRunning() int {
 	}
 	ui.Errorf("le moteur Docker ne répond pas. Consulte le journal : docker engine logs")
 	return 1
+}
+
+// ensureWSLConf met à jour /etc/wsl.conf dans les machines créées avant l'option metadata,
+// puis arrête la machine pour que le nouveau montage de /mnt/c soit pris en compte au démarrage.
+// Appelée seulement quand le moteur est arrêté : aucun conteneur n'est interrompu.
+func ensureWSLConf() {
+	if wslQuiet(inDistro("sh", "-c", wslConfCheck)...) == 0 {
+		return
+	}
+	ui.Info("Mise à jour de la machine Docker : droits des fichiers Windows dans les conteneurs…")
+	if wslQuiet(inDistro("sh", "-c", writeWSLConfScript)...) != 0 {
+		ui.Warn("impossible de mettre à jour /etc/wsl.conf dans la machine Docker.")
+		return
+	}
+	wslQuiet("--terminate", Distro)
 }
 
 // ---------------------------------------------------------------------------
@@ -315,6 +331,9 @@ func Install(elevate func(args ...string) int) int {
 		ui.Errorf("l'installation de Docker Engine a échoué. Pour recommencer : apt remove docker -y && apt install docker")
 		return code
 	}
+
+	// Redémarre la machine pour appliquer /etc/wsl.conf (montage de /mnt/c avec metadata).
+	wslQuiet("--terminate", Distro)
 
 	ui.Step("Premier démarrage du moteur")
 	if code := ensureRunning(); code != 0 {
