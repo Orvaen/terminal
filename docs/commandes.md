@@ -31,6 +31,7 @@ les affiche toutes.
 | `apt remove`, `purge`, `upgrade`, `show` | les logiciels installés : noms courts (`node`) et identifiants winget (`Spotify.Spotify`) |
 | `apt install` | les noms courts connus (`git`, `node`, `docker`…) |
 | `docker`, `docker engine`, `docker compose` | leurs sous-commandes |
+| `run` | les scripts de `terminal.json` |
 | `cd`, `rmdir` | les dossiers |
 | tout le reste | les fichiers et dossiers ; un nom avec une espace est mis entre guillemets |
 
@@ -58,6 +59,7 @@ Une ligne qui commence par une espace n'est pas gardée dans l'historique.
 | `sudo <commande>` | Exécute en administrateur, voir [plus bas](#sudo) |
 | `docker`, `docker-compose` | Docker léger, voir [Docker](docker.md) |
 | `req <fichier.http>`, `req nouveau` | Requêtes HTTP, voir [req](req.md) |
+| `run [script]`, `run -p <a> <b>` | Scripts du projet (`terminal.json`), en parallèle avec `-p`, voir [run](scripts.md) |
 | `ls [-a] [-l] [-h] [-1]`, `ll` | Liste un dossier. Les fichiers cachés de Windows sont masqués sans `-a` |
 | `cd [dossier]` | Change de dossier. `cd` seul : dossier perso ; `cd -` : dossier précédent ; accepte `/c/Users/...` comme Git Bash |
 | `pwd` | Affiche le dossier courant |

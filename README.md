@@ -24,6 +24,7 @@ $ sudo apt full-upgrade
 - **sudo** : lance une commande en administrateur.
 - **Docker léger** : le vrai Docker Engine sans Docker Desktop, qui s'éteint tout seul quand il ne sert pas.
 - **Mise à jour à chaud** : `apt upgrade terminal`, sans réinstaller ni fermer ce qui tourne.
+- **run** : les scripts du projet dans `terminal.json`, comme ceux de `package.json`, et en parallèle avec `run -p` (à la place de concurrently).
 - **req** : teste tes API (GET, POST, DELETE…) depuis un simple fichier `.http`, avec des vérifications.
 
 ## Installation
@@ -45,6 +46,7 @@ et dans Windows Terminal.
 - [Commandes](docs/commandes.md)
 - [apt](docs/apt.md)
 - [Docker léger](docs/docker.md)
+- [run : les scripts du projet](docs/scripts.md)
 - [req : tester des requêtes HTTP](docs/req.md)
 - [Logo](docs/identite.md)
 - [Développement](docs/developpement.md)

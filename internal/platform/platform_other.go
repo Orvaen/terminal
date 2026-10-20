@@ -35,3 +35,6 @@ func NativeSudoInline() bool { return false }
 
 // RunSelfElevated n'est pas pris en charge hors Windows.
 func RunSelfElevated(args ...string) int { return 1 }
+
+// KillTree arrête un processus (hors Windows, sans ses enfants : utilisé seulement pour les tests).
+func KillTree(p *os.Process) error { return p.Kill() }

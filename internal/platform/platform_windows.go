@@ -169,3 +169,13 @@ func RunSelfElevated(args ...string) int {
 func psQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
+
+// KillTree arrête un processus et tous ceux qu'il a lancés (npm → node, cmd → …).
+func KillTree(p *os.Process) error {
+	cmd := exec.Command("taskkill", "/PID", strconv.Itoa(p.Pid), "/T", "/F")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	if err := cmd.Run(); err != nil {
+		return p.Kill()
+	}
+	return nil
+}

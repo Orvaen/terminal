@@ -14,6 +14,7 @@ import (
 	"github.com/Orvaen/terminal/internal/apt"
 	"github.com/Orvaen/terminal/internal/docker"
 	"github.com/Orvaen/terminal/internal/platform"
+	"github.com/Orvaen/terminal/internal/scripts"
 )
 
 // complete propose les mots possibles pour le mot sous le curseur.
@@ -47,6 +48,8 @@ func (s *Shell) complete(line []rune, pos int) (int, []string) {
 		filtered = false
 	case strings.EqualFold(words[0], "req") && strings.EqualFold(words[1], "liste") && len(words) == 2:
 		cands, filtered = httpFiles(pathCandidates(cur, false)), false
+	case strings.EqualFold(words[0], "run"):
+		cands = scriptCandidates(words[1:])
 	case strings.EqualFold(words[0], "cd") || strings.EqualFold(words[0], "rmdir"):
 		cands, filtered = pathCandidates(cur, true), false
 	default:
@@ -56,6 +59,32 @@ func (s *Shell) complete(line []rune, pos int) (int, []string) {
 		cands = filterPrefix(cands, cur, words)
 	}
 	return start, cands
+}
+
+// scriptCandidates : noms des scripts de terminal.json (et options de run).
+func scriptCandidates(args []string) []string {
+	for _, a := range args {
+		if a == "--" {
+			return nil
+		}
+	}
+	var cands []string
+	if len(args) == 0 {
+		cands = []string{"-p", "--init"}
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return cands
+	}
+	path, err := scripts.Find(cwd)
+	if err != nil {
+		return cands
+	}
+	f, err := scripts.Load(path)
+	if err != nil {
+		return cands
+	}
+	return append(f.Names(), cands...)
 }
 
 // httpFiles garde les dossiers et les fichiers .http / .rest.

@@ -18,6 +18,7 @@ import (
 	"github.com/Orvaen/terminal/internal/docker"
 	"github.com/Orvaen/terminal/internal/platform"
 	"github.com/Orvaen/terminal/internal/req"
+	"github.com/Orvaen/terminal/internal/scripts"
 	"github.com/Orvaen/terminal/internal/ui"
 )
 
@@ -32,7 +33,7 @@ var builtins map[string]builtin
 
 // Ordre d'affichage dans « help ».
 var builtinOrder = []string{
-	"apt", "sudo", "docker", "req",
+	"apt", "sudo", "docker", "req", "run",
 	"ls", "cd", "pwd", "cat", "touch", "mkdir", "rm", "rmdir", "cp", "mv",
 	"echo", "clear", "which", "export", "unset", "env", "open", "help", "exit",
 }
@@ -42,6 +43,7 @@ func init() {
 		"apt":    {runApt, "apt <commande> [paquets]", "Gestion des logiciels (winget) et mises à jour Windows"},
 		"docker": {runDocker, "docker <commande>", "Docker léger, sans Docker Desktop (apt install docker)"},
 		"req":    {runReq, "req <fichier.http> | req nouveau", "Teste des requêtes HTTP (GET, POST...) décrites dans un fichier"},
+		"run":    {runScripts, "run [script] | run -p <a> <b>", "Lance les scripts du projet (terminal.json), en parallèle avec -p"},
 		"sudo":   {runSudo, "sudo <commande>", "Lance une commande en administrateur"},
 		"ls":     {runLs, "ls [-a] [-l] [-h] [chemin...]", "Liste un dossier"},
 		"cd":     {runCd, "cd [dossier | - | ~]", "Change de dossier (accepte /c/Users/...)"},
@@ -98,6 +100,17 @@ func runDocker(s *Shell, args []string) int { return docker.Run(args) }
 
 func runReq(s *Shell, args []string) int { return req.Run(args, s.out) }
 
+func runScripts(s *Shell, args []string) int {
+	cwd, err := os.Getwd()
+	if err != nil {
+		s.errorf("run: %v", err)
+		return 1
+	}
+	r := scripts.NewRunner(s.color)
+	r.Out, r.Err = s.out, s.errOut
+	return scripts.Main(r, cwd, args)
+}
+
 func runSudo(s *Shell, args []string) int {
 	if len(args) == 0 {
 		s.errorf("usage : sudo <commande>")
@@ -133,7 +146,7 @@ func needsAdmin(args []string) bool {
 		return false
 	case "docker", "docker-compose":
 		return false // le moteur tourne dans WSL : pas besoin des droits admin Windows
-	case "req":
+	case "req", "run":
 		return false
 	}
 	return true
