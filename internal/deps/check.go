@@ -16,6 +16,7 @@ const (
 	Outdated               // présent, mais plus ancien que la version demandée
 	OK                     // présent et assez récent
 	NoPackage              // absent, et apt ne sait pas l'installer (voir Note)
+	Mismatch               // présent, mais pas la version majeure épinglée par le projet (.nvmrc, CI)
 )
 
 // Status : un besoin du projet et ce qui est installé.
@@ -78,12 +79,14 @@ func Check(needs []Need) []Status {
 			st.Have = extractVersion(VersionOf(p, args...))
 			break
 		}
-		if st.State == Missing && n.Key == "cpp" && MSVCInstalled() {
+		if st.State == Missing && (n.Key == "cpp" || n.Key == "msvc") && MSVCInstalled() {
 			st.State, st.Have, st.Command = OK, "MSVC (Build Tools)", "cl"
 		}
 		switch {
 		case st.State == Missing && n.Package == "":
 			st.State = NoPackage
+		case st.State == OK && n.Pinned != "" && st.Have != "" && Major(st.Have) != Major(n.Pinned):
+			st.State = Mismatch
 		case st.State == OK && n.Version != "" && st.Have != "" && compareVersions(st.Have, n.Version) < 0:
 			st.State = Outdated
 		}
@@ -149,4 +152,12 @@ func PackageFor(n Need) string {
 		}
 	}
 	return n.Package
+}
+
+// Major : la version majeure (« 24.18.0 » → « 24 »).
+func Major(v string) string {
+	if i := strings.Index(v, "."); i >= 0 {
+		return v[:i]
+	}
+	return v
 }

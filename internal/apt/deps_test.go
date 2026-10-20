@@ -57,3 +57,33 @@ func TestDepsListInstallsNothing(t *testing.T) {
 		t.Fatalf("apt deps n'installe rien : code %d, appels %v", code, *calls)
 	}
 }
+
+func TestDepsInstallSkipsCIOnlyToolsUnlessAsked(t *testing.T) {
+	calls := fakeWinget(t, nil)
+	root := t.TempDir()
+	os.MkdirAll(filepath.Join(root, ".github", "workflows"), 0o755)
+	os.WriteFile(filepath.Join(root, ".github", "workflows", "ci.yml"),
+		[]byte("jobs:\n  a:\n    steps:\n      - uses: actions/setup-dotnet@v4\n        with:\n          dotnet-version: '10.0'\n"), 0o644)
+	os.WriteFile(filepath.Join(root, "go.mod"), []byte("module x\n\ngo 1.23\n"), 0o644)
+
+	oldLook, oldRefresh, oldStep, oldMSVC := deps.LookPath, refreshPath, runStep, msvcInstalled
+	t.Cleanup(func() { deps.LookPath, refreshPath, runStep, msvcInstalled = oldLook, oldRefresh, oldStep, oldMSVC })
+	deps.LookPath = func(string) (string, error) { return "", errors.New("absent") }
+	refreshPath = func() {}
+	runStep = func(string, []string) int { return 0 }
+	msvcInstalled = func() bool { return false }
+
+	Run([]string{"deps", "install", root, "-y"})
+	if len(*calls) != 1 || (*calls)[0][2] != "GoLang.Go" {
+		t.Fatalf("seul Go (demandé par go.mod) doit être installé : %v", *calls)
+	}
+	*calls = nil
+	Run([]string{"deps", "install", "--ci", root, "-y"})
+	ids := []string{}
+	for _, c := range *calls {
+		ids = append(ids, c[2])
+	}
+	if strings.Join(ids, ",") != "GoLang.Go,Microsoft.DotNet.SDK.10" {
+		t.Fatalf("avec --ci, .NET aussi : %v", ids)
+	}
+}

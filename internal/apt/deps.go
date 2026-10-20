@@ -57,10 +57,13 @@ var msvcInstalled = func() bool {
 // cmdDeps : apt deps [install] [dossier]. install force le mode installation (apt build-dep).
 func cmdDeps(args []string, install, yes bool) int {
 	dir := "."
+	withCI := false
 	for _, a := range args {
 		switch strings.ToLower(a) {
 		case "install", "installer":
 			install = true
+		case "--ci":
+			withCI = true
 		default:
 			dir = a
 		}
@@ -82,11 +85,18 @@ func cmdDeps(args []string, install, yes bool) int {
 	fmt.Fprintln(stdout, "Projet : "+proj.Root)
 	fmt.Fprintln(stdout)
 	printStatuses(statuses)
+	printAdvice(statuses)
 
-	todo := 0
+	// Ce que la CI seule demande n'est installé qu'avec --ci.
+	wanted := func(s deps.Status) bool {
+		return (s.State == deps.Missing || s.State == deps.Outdated) && (withCI || !s.CIOnly())
+	}
+	todo, ciOnly := 0, 0
 	for _, s := range statuses {
-		if s.State == deps.Missing || s.State == deps.Outdated {
+		if wanted(s) {
 			todo++
+		} else if s.State == deps.Missing && s.CIOnly() {
+			ciOnly++
 		}
 	}
 	steps := pendingSteps(proj.Steps)
@@ -99,6 +109,9 @@ func cmdDeps(args []string, install, yes bool) int {
 				fmt.Fprintf(stdout, "  %s : %s\n", s.Dir, s.Label)
 			}
 			fmt.Fprintln(stdout)
+		}
+		if ciOnly > 0 {
+			fmt.Fprintf(stdout, "○ : demandé seulement par la CI (souvent un job secondaire), installé avec : apt deps install --ci\n\n")
 		}
 		switch {
 		case todo > 0:
@@ -118,6 +131,9 @@ func cmdDeps(args []string, install, yes bool) int {
 	}
 	code := 0
 	for _, s := range statuses {
+		if !wanted(s) {
+			continue
+		}
 		pkg := deps.PackageFor(s.Need)
 		switch s.State {
 		case deps.Missing:
@@ -170,7 +186,7 @@ func cmdDeps(args []string, install, yes bool) int {
 
 	missing := 0
 	for _, s := range statuses {
-		if s.State != deps.OK {
+		if s.State != deps.OK && !(s.CIOnly() && !withCI) {
 			missing++
 		}
 	}
@@ -178,6 +194,24 @@ func cmdDeps(args []string, install, yes bool) int {
 		ui.Info("Le projet est prêt. Ouvre un nouveau terminal si une commande n'est pas encore trouvée ailleurs (VS Code, PowerShell).")
 	}
 	return code
+}
+
+// printAdvice : ce qu'apt ne fait pas à ta place, et comment le faire.
+func printAdvice(statuses []deps.Status) {
+	for _, s := range statuses {
+		if s.State != deps.Mismatch {
+			continue
+		}
+		major := deps.Major(s.Pinned)
+		fmt.Fprintln(stdout)
+		if s.Key == "node" {
+			fmt.Fprintf(stdout, "Node.js : le projet est construit avec Node %s (%s), tu as la %s.\n", major, s.PinnedFrom, s.Have)
+			fmt.Fprintln(stdout, "apt ne remplace pas ton Node (tes autres projets en dépendent). Pour avoir les deux côte à côte :")
+			fmt.Fprintf(stdout, "  apt install nvm, puis dans un nouveau terminal : nvm install %s && nvm use %s\n", s.Pinned, s.Pinned)
+			continue
+		}
+		fmt.Fprintf(stdout, "%s : le projet utilise la version %s (%s), tu as la %s.\n", s.Label, major, s.PinnedFrom, s.Have)
+	}
 }
 
 func pendingSteps(steps []deps.Step) []deps.Step {
@@ -207,14 +241,20 @@ func printStatuses(statuses []deps.Status) {
 			state = fmt.Sprintf("%s, trop ancien (≥ %s voulu par %s)", s.Have, s.Version, s.VersionFrom)
 		case deps.Missing:
 			mark, state = ui.Color("31", "✗"), "manquant → apt install "+deps.PackageFor(s.Need)
+			if s.CIOnly() {
+				mark = ui.Color("2", "○")
+			}
 			if s.Version != "" {
 				state += " (≥ " + s.Version + " voulu)"
 			}
 		case deps.NoPackage:
 			mark, state = ui.Color("33", "?"), "manquant : "+s.Note
+		case deps.Mismatch:
+			mark = ui.Color("33", "!")
+			state = fmt.Sprintf("%s, mais le projet utilise la version %s (%s)", s.Have, deps.Major(s.Pinned), s.PinnedFrom)
 		}
 		fmt.Fprintf(stdout, "  %s %-18s %s\n", mark, s.Label, state)
-		fmt.Fprintf(stdout, "    %-18s %s\n", "", ui.Color("2", strings.Join(s.Sources, ", ")))
+		fmt.Fprintf(stdout, "    %-18s %s\n", "", ui.Color("2", s.SourcesSummary()))
 	}
 }
 

@@ -5,6 +5,7 @@ package deps
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -46,6 +47,8 @@ var catalog = []Tool{
 	{Key: "composer", Label: "Composer", Commands: []string{"composer"}, Package: "composer"},
 	{Key: "ruby", Label: "Ruby", Commands: []string{"ruby"}, Package: "ruby"},
 	{Key: "cmake", Label: "CMake", Commands: []string{"cmake"}, Package: "cmake"},
+	// node-gyp (modules Node natifs) exige MSVC sous Windows, pas gcc.
+	{Key: "msvc", Label: "MSVC (C++)", Commands: []string{"cl"}, Package: "build-essential"},
 	// gcc (WinLibs) est dans le PATH tout de suite ; MSVC (apt install build-essential) est reconnu à part.
 	{Key: "cpp", Label: "Compilateur C/C++", Commands: []string{"gcc", "clang", "cl"}, Package: "gcc"},
 	{Key: "terraform", Label: "Terraform", Commands: []string{"terraform"}, Package: "terraform"},
@@ -75,6 +78,45 @@ type Need struct {
 	Sources     []string // fichiers qui le demandent (relatifs au projet)
 	Version     string   // version minimale demandée ("" : aucune)
 	VersionFrom string   // fichier qui demande la version
+	Pinned      string   // version épinglée (.nvmrc, CI) : la même majeure est attendue
+	PinnedFrom  string
+}
+
+// CIOnly : l'outil n'est demandé que par la CI (souvent pour un job secondaire), pas par le projet.
+func (n Need) CIOnly() bool {
+	for _, s := range n.Sources {
+		if !strings.HasPrefix(s, ".github/workflows/") {
+			return false
+		}
+	}
+	return len(n.Sources) > 0
+}
+
+// SourcesSummary : les fichiers qui demandent l'outil, lisibles (les workflows regroupés).
+func (n Need) SourcesSummary() string {
+	var out []string
+	workflows := 0
+	for _, s := range n.Sources {
+		if strings.HasPrefix(s, ".github/workflows/") {
+			workflows++
+			if workflows == 1 {
+				out = append(out, s)
+			}
+			continue
+		}
+		out = append(out, s)
+	}
+	if workflows > 1 {
+		for i, s := range out {
+			if strings.HasPrefix(s, ".github/workflows/") {
+				out[i] = fmt.Sprintf("la CI (%d workflows)", workflows)
+			}
+		}
+	}
+	if len(out) > 5 {
+		out = append(out[:4], fmt.Sprintf("et %d autres", len(out)-4))
+	}
+	return strings.Join(out, ", ")
 }
 
 // Step : une commande qui installe les dépendances du projet (npm ci, go mod download…).
@@ -135,6 +177,18 @@ func (d *detector) want(key, version, source string) {
 	}
 }
 
+// pin enregistre une version épinglée (la première trouvée l'emporte : .nvmrc avant la CI).
+func (d *detector) pin(key, version, source string) {
+	v := cleanVersion(version)
+	if v == "" {
+		return
+	}
+	n := d.need(key, source)
+	if n.Pinned == "" {
+		n.Pinned, n.PinnedFrom = v, source
+	}
+}
+
 // Detect analyse le projet situé dans root.
 func Detect(root string) (*Project, error) {
 	root, err := filepath.Abs(root)
@@ -142,7 +196,7 @@ func Detect(root string) (*Project, error) {
 		return nil, err
 	}
 	d := &detector{p: &Project{Root: root}, needs: map[string]*Need{}}
-	if info, err := os.Stat(filepath.Join(root, ".git")); err == nil && info.IsDir() {
+	if exists(filepath.Join(root, ".git")) {
 		d.need("git", ".git")
 	}
 	err = filepath.WalkDir(root, func(path string, e fs.DirEntry, err error) error {
@@ -167,6 +221,9 @@ func Detect(root string) (*Project, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Après les fichiers du projet : .nvmrc reste la référence pour la version épinglée de Node.
+	d.readCI(root)
+	d.readDevcontainer(root)
 	for _, t := range catalog {
 		if n, ok := d.needs[t.Key]; ok {
 			d.p.Needs = append(d.p.Needs, *n)
@@ -221,6 +278,11 @@ func (d *detector) dir(path, rel string) {
 		}
 		d.p.Steps = append(d.p.Steps, Step{Dir: rel, Args: [][]string{args}, Label: strings.Join(args, " "),
 			Done: has("node_modules")})
+		if mods := nativeModules(path); len(mods) > 0 {
+			src := join(rel, "package.json") + " (modules natifs : " + summarize(mods, 3) + ")"
+			d.need("python", src)
+			d.need("msvc", src)
+		}
 	}
 
 	pyReqs := has("requirements.txt")
@@ -283,6 +345,7 @@ func (d *detector) file(path, rel, name string) {
 	case name == ".nvmrc" || name == ".node-version":
 		d.need("node", rel)
 		d.want("node", readFile(path), rel)
+		d.pin("node", readFile(path), rel)
 	case name == "deno.json" || name == "deno.jsonc":
 		d.need("deno", rel)
 	case name == "go.mod":

@@ -80,9 +80,41 @@ Le projet et ses sous-dossiers sont parcourus sur 3 niveaux (`api/`, `web/`, `se
 | `*.tf`, `Chart.yaml`, `*.hurl` | Terraform, Helm, Hurl | | |
 | `mix.exs`, `pubspec.yaml`, `Package.swift`, `build.sbt`, `stack.yaml`, `cpanfile` | Elixir, Dart, Swift, sbt, Stack, Perl | | |
 | `.tool-versions`, `mise.toml` | les outils listés | leurs versions | |
+| `.github/workflows/*.yml` (CI) | ceux des actions `setup-node`, `setup-python`, `setup-go`, `setup-java`, `setup-dotnet`, `setup-ruby`, `setup-php`, `pnpm/action-setup`, `setup-bun`, `setup-deno`, `rust-toolchain`, `setup-terraform`, `setup-helm`, `setup-uv`, `setup-msbuild`… | `node-version`, `python-version`… (une matrice `[18, 20, 22]` compte pour la plus récente) et `node-version-file`, `go-version-file`… | |
+| `.devcontainer/devcontainer.json` | les *features* (`node`, `python`, `go`, `java`, `dotnet`, `rust`, `docker-in-docker`…) et l'image `mcr.microsoft.com/devcontainers/…` (aussi dans le `Dockerfile` du devcontainer) | l'option `version` et l'étiquette de l'image (`typescript-node:1-22` → Node 22) | |
 
-Une version demandée est un **minimum** : `.nvmrc` à `22` est satisfait par Node 24. Si plusieurs fichiers
-demandent une version, la plus exigeante l'emporte. Pour Java et .NET, la version choisit le paquet :
+Une version demandée est un **minimum** : `engines.node` à `>=20` est satisfait par Node 24. Si plusieurs
+fichiers demandent une version, la plus exigeante l'emporte.
+
+Sauf pour Node quand le projet **épingle** sa version : `.nvmrc`, `.node-version`, ou une version exacte dans la
+CI (`node-version: 22.11.0`). Le projet est alors construit avec cette version majeure, et une autre peut casser
+la compilation de ses modules natifs. `apt deps` le signale (`!`) mais ne remplace pas ton Node, dont tes autres
+projets dépendent ; il te propose plutôt nvm, pour avoir les deux versions côte à côte.
+
+### Modules Node natifs
+
+Certaines dépendances Node sont écrites en C/C++ (`node-pty`, `sqlite3`, `bcrypt`, `kerberos`…) et sont compilées
+par node-gyp pendant `npm install` quand aucun binaire précompilé n'existe. Sous Windows, il faut alors **Python
+et le compilateur MSVC**. Sans eux, l'installation échoue au bout de plusieurs minutes avec une erreur peu claire.
+
+`apt deps` les repère avant, et réclame Python et MSVC (`apt install build-essential`) :
+
+| Où | Comment |
+|---|---|
+| `node_modules/` déjà présent | les dépendances qui contiennent un `binding.gyp` |
+| sinon `package-lock.json` | les dépendances avec un script d'installation qui utilisent `node-addon-api`, `nan`, `bindings`, `node-gyp` ou `prebuild-install` ; celles qui ne livrent que des binaires précompilés (`node-gyp-build`), celles réservées à un autre système (`fsevents` pour macOS) et les scripts connus pour ne rien compiler (husky, esbuild, electron, playwright…) sont ignorées |
+| le projet lui-même | un `binding.gyp` à sa racine |
+
+Avec pnpm ou Yarn, seule la première méthode marche : lance `apt deps` après un premier `pnpm install` si
+l'installation a échoué.
+
+### Ce que seule la CI demande
+
+Un outil demandé **uniquement** par la CI sert souvent à un job secondaire (tests d'une extension, publication…).
+`apt deps` le marque d'un `○` et `apt deps install` ne l'installe pas, sauf avec `apt deps install --ci`.
+
+Sur le dépôt de VS Code, par exemple, `apt deps` trouve : Node 24 épinglé par `.nvmrc`, Python et MSVC pour ses
+20 modules natifs, Rust (devcontainer), .NET demandé seulement par la CI, et `npm ci` dans deux dossiers. Pour Java et .NET, la version choisit le paquet :
 `maven.compiler.release` à 17 installe le JDK 17, `global.json` en 8.0 installe le SDK .NET 8.
 
 Composer, Maven, Gradle et Poetry sont installés par `apt` lui-même (voir
