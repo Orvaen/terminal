@@ -19,7 +19,7 @@ import (
 
 // Remplacées dans les tests.
 var (
-	refreshPath = refreshPathFromRegistry
+	refreshPath = func() { platform.RefreshPath() }
 	// runStep lance une commande du projet (npm ci…) : sa sortie s'affiche normalement, et la fin
 	// est gardée pour reconnaître les erreurs qu'apt sait corriger (MSB8040).
 	runStep = func(dir string, args []string) (int, string) {
@@ -289,22 +289,4 @@ func printStatuses(statuses []deps.Status) {
 		fmt.Fprintf(stdout, "  %s %-18s %s\n", mark, s.Label, state)
 		fmt.Fprintf(stdout, "    %-18s %s\n", "", ui.Color("2", s.SourcesSummary()))
 	}
-}
-
-// refreshPathFromRegistry ajoute au PATH du processus les dossiers enregistrés par les installeurs
-// (Node, Go, Python…), pour utiliser les outils tout de suite, sans rouvrir le terminal.
-func refreshPathFromRegistry() {
-	cur := os.Getenv("PATH")
-	seen := map[string]bool{}
-	for _, p := range filepath.SplitList(cur) {
-		seen[strings.ToLower(filepath.Clean(p))] = true
-	}
-	parts := []string{cur}
-	for _, d := range platform.RegistryPathDirs() {
-		if k := strings.ToLower(filepath.Clean(d)); !seen[k] {
-			seen[k] = true
-			parts = append(parts, d)
-		}
-	}
-	os.Setenv("PATH", strings.Join(parts, string(os.PathListSeparator)))
 }

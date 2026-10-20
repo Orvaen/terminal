@@ -249,6 +249,11 @@ func cmdInstall(pkgs []string, yes bool) int {
 			return 100 // comme apt : paquet introuvable
 		}
 		code := installTarget(p, res)
+		// Déjà installé : winget tente une mise à jour et répond « aucune mise à jour applicable ».
+		if isNotApplicable(code) {
+			ui.Info(p + " est déjà installé et à jour.")
+			return 0
+		}
 		// Un identifiant de la table a pu changer chez winget : on le retrouve autrement.
 		if isNoPackageFound(code) && res.curated {
 			ui.Warn(res.id + " est introuvable dans winget, recherche d'un équivalent…")

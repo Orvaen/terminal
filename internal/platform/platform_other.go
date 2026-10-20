@@ -50,3 +50,6 @@ func AddUserPath(dir string) error { return nil }
 
 // RemoveUserPath : hors Windows, rien à faire.
 func RemoveUserPath(dir string) error { return nil }
+
+// FindInstalledExe : hors Windows, pas de registre des programmes installés.
+func FindInstalledExe(name string) string { return "" }

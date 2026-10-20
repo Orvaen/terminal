@@ -206,3 +206,11 @@ func TestUpgradeAllUpdatesReleaseBuildsOnly(t *testing.T) {
 		t.Fatalf("apt upgrade doit finir par la mise à jour du terminal, appels %v", *calls)
 	}
 }
+
+func TestInstallAlreadyInstalledIsSuccess(t *testing.T) {
+	notApplicable := int(int32(-1978335189)) // 0x8A15002B
+	fakeWinget(t, map[string]int{"Orange-OpenSource.Hurl": notApplicable})
+	if code := Run([]string{"install", "hurl"}); code != 0 {
+		t.Fatalf("déjà installé : code 0 attendu, obtenu %d", code)
+	}
+}

@@ -277,6 +277,20 @@ func (s *Shell) runSpecial(text string) int {
 		}
 		r, ok := s.resolve(args)
 		if !ok {
+			if _, found := lookAgain(args[0]); found {
+				r, ok = s.resolve(args)
+			}
+		}
+		if !ok {
+			code, handled := s.notFound(args[0])
+			if handled {
+				return code
+			}
+			if code == -1 { // trouvé dans le dossier d'un programme installé
+				r, ok = s.resolve(args)
+			}
+		}
+		if !ok {
 			return s.powershell(text) // cmdlet ou commande cmd : PowerShell sait faire
 		}
 		if err := r.guard(args[0]); err != nil {

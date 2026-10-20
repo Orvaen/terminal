@@ -62,6 +62,7 @@ func New() *Shell {
 	s.promptFmt = promptFormat(loadPromptConfig())
 	addUnixTools()
 	setupCoreutils() // Coreutils de Microsoft, s'il est installé, passe en tête du PATH
+	loadPSCommands() // pour reconnaître une commande introuvable (notfound.go)
 	if restore, ok := platform.EnableRawInput(); ok {
 		restore()
 		s.edit = &editor{
@@ -152,7 +153,11 @@ func (s *Shell) run(line string) {
 	s.RunLine(line)
 	if strings.Contains(strings.ToLower(line), "apt") {
 		apt.InvalidateInstalled()
-		setupCoreutils() // « apt install coreutils » : utilisable tout de suite
+		// Ce qu'apt vient d'installer est utilisable tout de suite, sans rouvrir le terminal.
+		if refreshPath() {
+			resetCommandNames()
+		}
+		setupCoreutils() // « apt install coreutils »
 	}
 }
 
@@ -226,6 +231,17 @@ func (s *Shell) runSegment(seg segment) int {
 			return r.builtin.run(s, r.args)
 		}
 		return s.execProgram(r.path, append(append([]string{}, r.pre...), r.args...))
+	}
+	// Installé depuis l'ouverture du terminal ? On relit le PATH de Windows.
+	if path, ok := lookAgain(args[0]); ok {
+		return s.execProgram(path, args[1:])
+	}
+	if code, handled := s.notFound(args[0]); handled {
+		return code
+	} else if code == -1 {
+		if path, err := exec.LookPath(args[0]); err == nil {
+			return s.execProgram(path, args[1:])
+		}
 	}
 	// Ni commande intégrée ni programme : cmdlet, alias ou fonction PowerShell (dir, Get-Process...).
 	return s.powershell(seg.text)

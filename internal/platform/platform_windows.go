@@ -285,3 +285,23 @@ func editUserPath(dir string, add bool) error {
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	return cmd.Run()
 }
+
+// FindInstalledExe cherche name.exe dans le dossier des programmes installés (ceux de « Applications
+// installées », d'après le registre), pour un installeur qui n'a pas ajouté son dossier au PATH.
+// Renvoie le dossier qui le contient, ou "".
+func FindInstalledExe(name string) string {
+	script := `$n = ` + psQuote(name+".exe") + `; ` +
+		`$keys = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',` +
+		`'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',` +
+		`'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'; ` +
+		`foreach ($k in Get-ItemProperty $keys -ErrorAction SilentlyContinue) { ` +
+		`$l = $k.InstallLocation; if (-not $l) { continue }; $l = $l.Trim('"'); ` +
+		`foreach ($d in @($l, (Join-Path $l 'bin'))) { if (Test-Path (Join-Path $d $n)) { $d; exit } } }`
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}

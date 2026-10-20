@@ -150,7 +150,20 @@ PowerShell prend le relais pour ce que le terminal ne gère pas : une variable (
 Quand ce que tu tapes n'est pas une commande intégrée :
 
 1. si c'est un **programme Windows** (`git`, `code`, `node`, `notepad`…), il est lancé directement ;
-2. sinon, la ligne est confiée à **PowerShell** : ses commandes (`dir`, `Get-Process`…) fonctionnent donc aussi.
+2. s'il a été **installé depuis l'ouverture du terminal** (`apt install hurl`, un installeur…), le terminal relit le
+   PATH de Windows et le trouve : pas besoin de rouvrir la fenêtre. Si l'installeur n'a pas ajouté son dossier au
+   PATH, le terminal le cherche dans le dossier d'installation enregistré par Windows ;
+3. si c'est une **commande PowerShell** (`dir`, `Get-Process`…), la ligne est confiée à PowerShell ;
+4. sinon, un message court, comme sous Linux, avec la commande pour l'installer :
+
+```text
+$ hurl tests/00-games.hurl
+hurl : commande introuvable
+Pour l'installer : apt install hurl   (Orange-OpenSource.Hurl)
+```
+
+Pour reconnaître les commandes PowerShell sans le lancer à chaque fois, le terminal garde leur liste dans un
+fichier, rafraîchi chaque semaine.
 
 Les lignes qui contiennent une variable (`$env:...`) sont aussi confiées à PowerShell, voir
 [Tubes et redirections](#tubes-et-redirections). Elles prennent alors une demi-seconde de plus, le temps que
