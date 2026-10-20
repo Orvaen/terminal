@@ -18,10 +18,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Vérifier
-        run: |
-          go vet ./...
-          go test ./...
+      - name: Analyse
+        run: go vet ./...
+
+      - name: Tests
+        run: go test ./...
 
       - name: Compiler
         shell: pwsh
@@ -31,7 +32,10 @@ jobs:
           foreach ($arch in 'amd64', 'arm64') {
             $env:GOARCH = $arch
             New-Item -ItemType Directory -Force "dist/$arch" | Out-Null
-            go build -trimpath -ldflags $ldflags -o "dist/$arch/apt.exe" ./cmd/apt
+            foreach ($name in 'apt', 'terminal') {
+              go build -trimpath -ldflags $ldflags -o "dist/$arch/$name.exe" "./cmd/$name"
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
             Copy-Item install.ps1 "dist/$arch/"
           }
 

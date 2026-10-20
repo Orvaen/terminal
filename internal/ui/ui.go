@@ -10,6 +10,9 @@ import (
 
 var color = os.Getenv("NO_COLOR") == "" && platform.EnableVirtualTerminal()
 
+// ColorEnabled indique si les couleurs ANSI sont actives.
+func ColorEnabled() bool { return color }
+
 func paint(code, s string) string {
 	if !color {
 		return s

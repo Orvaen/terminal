@@ -1,57 +1,90 @@
-# apt pour Windows
+# Orvaen Terminal
 
-Les commandes `apt` de Linux, directement dans n'importe quel terminal Windows (Windows Terminal, PowerShell, cmd).
-Fini les installateurs à télécharger : `apt` s'appuie sur **winget**, le gestionnaire de paquets intégré à Windows, et sur **Windows Update** pour le système.
+Un terminal façon Linux pour Windows, à la manière de Git Bash : tu l'ouvres d'un double-clic et tu tapes
+`sudo apt update`, `apt install git`, `ls`, `cd`, `rm -rf`… comme sous Linux, tout en gardant les programmes
+et commandes Windows.
 
-```powershell
-sudo apt update
-sudo apt upgrade
-apt install git node vscode
-apt search spotify
-sudo apt full-upgrade      # logiciels + mises à jour Windows
+- **`apt` intégré** : installe et met à jour tes logiciels via **winget** (le gestionnaire de paquets de Windows),
+  et Windows lui-même via **Windows Update**. Fini les installateurs à télécharger.
+- **`sudo`** : lance une commande en administrateur.
+- **Commandes Linux** : `ls`, `cd`, `pwd`, `cat`, `touch`, `mkdir`, `rm`, `cp`, `mv`, `echo`, `which`, `export`, `clear`…
+- **Tout le reste marche** : `git`, `code .`, `notepad`, et les commandes PowerShell (`dir`, `Get-Process`, tubes `|`…).
+
+```text
+Rayan@PC WIN ~/Desktop
+$ sudo apt update && apt install git node vscode
+$ mkdir -p projet/src && cd projet && code .
+$ sudo apt full-upgrade      # logiciels + mises à jour Windows
 ```
 
-Un seul exécutable, écrit en Go, sans dépendance.
+Deux exécutables Go, sans dépendance :
+- `terminal.exe` — le terminal (avec `apt` et `sudo` intégrés) ;
+- `apt.exe` — la commande `apt` seule, utilisable aussi depuis PowerShell, cmd ou Windows Terminal.
 
 ## Installation
 
-### Depuis une release
-
-1. Télécharge le zip de la dernière [release](https://github.com/Orvaen/terminal/releases) (`x64` pour la plupart des PC, `arm64` pour les PC ARM).
-2. Dézippe-le, puis lance dans PowerShell :
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\install.ps1
-   ```
-3. Ouvre un nouveau terminal et tape `apt help`.
-
-Le script copie `apt.exe` (et `apt-get.exe`) dans `%LOCALAPPDATA%\Programs\apt-windows` et ajoute ce dossier à ton PATH.
-
 ### Depuis les sources
+
+Il faut [Go](https://go.dev/dl/) (ou `winget install GoLang.Go`).
 
 ```powershell
 git clone https://github.com/Orvaen/terminal
 cd terminal
-go build -o apt.exe ./cmd/apt
+powershell -ExecutionPolicy Bypass -File .\build.ps1
+```
+
+### Depuis une release
+
+Télécharge le zip de la dernière [release](https://github.com/Orvaen/terminal/releases) (`x64` pour la plupart des PC,
+`arm64` pour les PC ARM), dézippe-le et lance :
+
+```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-> Si tu avais chargé l'ancien script `apt-windows.ps1` dans ton profil PowerShell, retire la ligne correspondante de `$PROFILE` : une fonction PowerShell `apt` passerait avant `apt.exe`.
+### Ce que fait l'installeur
 
-## Et `sudo` ?
+- copie `terminal.exe`, `apt.exe` et `apt-get.exe` dans `%LOCALAPPDATA%\Programs\apt-windows` et ajoute ce dossier au PATH ;
+- crée un raccourci **Orvaen Terminal** dans le menu Démarrer et sur le Bureau ;
+- ajoute un profil **Orvaen Terminal** dans Windows Terminal (menu ⌄ des onglets) ;
+- lance le terminal.
 
-Windows 11 (24H2 et plus) contient un vrai `sudo`. Active-le une fois, dans un terminal administrateur :
+> Les fenêtres déjà ouvertes ne voient pas le nouveau PATH : pour utiliser `apt` dans PowerShell ou cmd, ouvre une nouvelle fenêtre.
+> Dans Orvaen Terminal, `apt` est intégré et marche tout de suite.
 
-```powershell
-sudo config --enable normal
-```
+> Si tu avais chargé l'ancien script `apt-windows.ps1` dans ton profil PowerShell, retire la ligne correspondante de `$PROFILE`.
 
-(ou *Paramètres → Système → Pour les développeurs → Activer sudo*). Ensuite `sudo apt …` lance `apt` en administrateur, dans le même terminal.
+## `sudo`
 
-Sans `sudo`, tout fonctionne quand même :
-- `install`, `upgrade` et `remove` : winget affiche lui-même la fenêtre UAC quand un installeur a besoin des droits admin ;
-- `full-upgrade` : si tu n'es pas admin, `apt` ouvre une fenêtre administrateur pour la partie Windows Update.
+- `sudo apt install …`, `sudo apt upgrade` : pas besoin d'être admin, winget affiche lui-même la fenêtre UAC quand un installeur le demande.
+- `sudo apt full-upgrade` et toute autre commande : relancée en administrateur.
+  - Si le **sudo de Windows 11** est activé en mode normal (`sudo config --enable normal` dans un terminal admin,
+    ou *Paramètres → Système → Pour les développeurs → Activer sudo*), la commande s'exécute dans la même fenêtre.
+  - Sinon, une fenêtre administrateur s'ouvre (confirmation UAC), exécute la commande et attend Entrée avant de se fermer.
 
-## Commandes
+Le prompt affiche `ADMIN` et `#` quand le terminal tourne en administrateur.
+
+## Commandes intégrées
+
+| Commande | Rôle |
+|---|---|
+| `apt <commande> [paquets]` | `update`, `upgrade`, `full-upgrade`, `install`, `remove`, `search`, `show`, `list [--upgradable]` |
+| `sudo <commande>` | Exécute en administrateur |
+| `ls [-a] [-l] [-h]`, `ll` | Liste un dossier (les fichiers cachés de Windows sont masqués sans `-a`) |
+| `cd [dossier\|-\|~]` | Change de dossier — accepte `/c/Users/...` comme Git Bash |
+| `pwd`, `cat`, `touch`, `mkdir [-p]` | Comme sous Linux |
+| `rm [-r] [-f]`, `rmdir` | Supprime (refuse la racine d'un disque et ton dossier perso) |
+| `cp [-r]`, `mv` | Copie, déplace, renomme |
+| `echo`, `clear`, `which`, `export`, `unset`, `env` | Comme sous Linux |
+| `open [chemin]` | Ouvre dans l'Explorateur Windows |
+| `help`, `exit` | Aide, quitter |
+
+Enchaînement : `&&`, `||` et `;`. Les tubes (`|`), redirections (`>`, `<`) et variables (`$env:...`) sont confiés à PowerShell.
+Tout nom qui n'est pas une commande intégrée est lancé comme programme Windows, ou à défaut comme commande PowerShell.
+
+`terminal -c "commande"` exécute une ligne et quitte.
+
+## `apt` en détail
 
 | Commande | Ce que ça fait |
 |---|---|
@@ -65,38 +98,32 @@ Sans `sudo`, tout fonctionne quand même :
 | `apt list [--upgradable]` | Logiciels installés, ou ceux qui ont une mise à jour |
 | `apt windows-update` | Uniquement les mises à jour Windows (admin) |
 
-`apt-get` fonctionne aussi, et `-y` est accepté (les accords de licence sont acceptés automatiquement).
+`apt-get` fonctionne aussi, et `-y` est accepté.
 
-## Noms de paquets
+Noms courts traduits en identifiants winget exacts : `git`, `node`/`nodejs`, `python`/`python3`, `vscode`/`code`,
+`go`, `rust`, `docker`, `gh`, `chrome`, `firefox`, `discord`, `vlc`, `7zip`… (liste complète : `apt help` ou
+[`internal/apt/aliases.go`](internal/apt/aliases.go)). Les autres noms sont transmis à winget ;
+`apt search <nom>` donne l'identifiant exact (ex. `apt install Spotify.Spotify`).
 
-Les noms courts courants sont traduits en identifiants winget exacts :
+## Limites actuelles
 
-| Nom | Identifiant winget |
-|---|---|
-| `git` | `Git.Git` |
-| `node`, `nodejs` | `OpenJS.NodeJS.LTS` |
-| `python`, `python3` | `Python.Python.3.12` |
-| `vscode`, `code` | `Microsoft.VisualStudioCode` |
-| `go`, `golang` | `GoLang.Go` |
-| `rust`, `rustup` | `Rustlang.Rustup` |
-| `docker` | `Docker.DockerDesktop` |
-| `gh` | `GitHub.cli` |
-
-La liste complète est dans `apt help` et dans [`internal/apt/aliases.go`](internal/apt/aliases.go).
-Tout autre nom est transmis à winget : `apt search <nom>` donne l'identifiant exact à utiliser (ex. `apt install Spotify.Spotify`).
+- Pas encore de complétion avec Tab. L'historique marche avec les flèches ↑/↓ (et F7 pour la liste).
+- Les commandes confiées à PowerShell (tubes, `dir`…) prennent une demi-seconde de plus au démarrage de PowerShell.
 
 ## Développement
 
 ```bash
 go test ./...
-GOOS=windows go build -o apt.exe ./cmd/apt
+GOOS=windows go build -o terminal.exe ./cmd/terminal
 ```
 
-La CI GitHub compile et teste à chaque push. Pousser un tag `vX.Y.Z` publie une release avec les zips x64 et arm64.
+La CI GitHub vérifie, teste et compile à chaque push. Pousser un tag `vX.Y.Z` publie une release avec les zips x64 et arm64.
 
 ```
-cmd/apt/            point d'entrée
-internal/apt/       commandes, alias, winget, Windows Update
-internal/platform/  droits admin, élévation UAC, couleurs de la console
+cmd/terminal/       le terminal (shell interactif)
+cmd/apt/            la commande apt seule
+internal/shell/     analyse des lignes, prompt, commandes intégrées
+internal/apt/       commandes apt, alias, winget, Windows Update
+internal/platform/  droits admin, élévation UAC, console Windows
 internal/ui/        affichage (==>, W:, E:)
 ```

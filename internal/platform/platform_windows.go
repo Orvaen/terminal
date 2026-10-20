@@ -5,8 +5,10 @@ package platform
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -15,13 +17,27 @@ import (
 const (
 	tokenElevation                  = 20     // TOKEN_INFORMATION_CLASS.TokenElevation
 	enableVirtualTerminalProcessing = 0x0004 // mode console pour les séquences ANSI
+	fileAttributeHidden             = 0x2
 )
 
 var (
-	kernel32           = syscall.NewLazyDLL("kernel32.dll")
-	procGetConsoleMode = kernel32.NewProc("GetConsoleMode")
-	procSetConsoleMode = kernel32.NewProc("SetConsoleMode")
+	kernel32                       = syscall.NewLazyDLL("kernel32.dll")
+	procGetConsoleMode             = kernel32.NewProc("GetConsoleMode")
+	procSetConsoleMode             = kernel32.NewProc("SetConsoleMode")
+	procGetConsoleScreenBufferInfo = kernel32.NewProc("GetConsoleScreenBufferInfo")
 )
+
+type coord struct{ X, Y int16 }
+
+type smallRect struct{ Left, Top, Right, Bottom int16 }
+
+type consoleScreenBufferInfo struct {
+	Size              coord
+	CursorPosition    coord
+	Attributes        uint16
+	Window            smallRect
+	MaximumWindowSize coord
+}
 
 // IsElevated indique si le processus tourne avec les droits administrateur.
 func IsElevated() bool {
@@ -52,6 +68,50 @@ func EnableVirtualTerminal() bool {
 	return r != 0
 }
 
+// TerminalWidth renvoie la largeur visible de la console (80 par défaut).
+func TerminalWidth() int {
+	h, err := syscall.GetStdHandle(syscall.STD_OUTPUT_HANDLE)
+	if err != nil {
+		return 80
+	}
+	var info consoleScreenBufferInfo
+	if r, _, _ := procGetConsoleScreenBufferInfo.Call(uintptr(h), uintptr(unsafe.Pointer(&info))); r == 0 {
+		return 80
+	}
+	if w := int(info.Window.Right-info.Window.Left) + 1; w >= 20 {
+		return w
+	}
+	return 80
+}
+
+// IsHidden indique si un fichier porte l'attribut « caché » de Windows.
+func IsHidden(info fs.FileInfo) bool {
+	if d, ok := info.Sys().(*syscall.Win32FileAttributeData); ok {
+		return d.FileAttributes&fileAttributeHidden != 0
+	}
+	return false
+}
+
+// NativeSudoInline indique si le sudo intégré à Windows 11 est activé en mode « dans la même fenêtre ».
+func NativeSudoInline() bool {
+	if _, err := exec.LookPath("sudo.exe"); err != nil {
+		return false
+	}
+	out, err := exec.Command("reg", "query", `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo`, "/v", "Enabled").Output()
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 3 && strings.EqualFold(fields[0], "Enabled") {
+			mode, err := strconv.ParseUint(fields[2], 0, 32)
+			// 1 = nouvelle fenêtre, 2 = entrée désactivée, 3 = normal (dans la même fenêtre)
+			return err == nil && (mode == 2 || mode == 3)
+		}
+	}
+	return false
+}
+
 // RunSelfElevated relance l'exécutable courant en administrateur (fenêtre UAC),
 // attend la fin et renvoie son code de sortie.
 func RunSelfElevated(args ...string) int {
@@ -59,12 +119,13 @@ func RunSelfElevated(args ...string) int {
 	if err != nil {
 		return 1
 	}
-	quoted := make([]string, len(args))
+	// On construit nous-mêmes la ligne d'arguments : Start-Process ne protège pas les espaces.
+	escaped := make([]string, len(args))
 	for i, a := range args {
-		quoted[i] = psQuote(a)
+		escaped[i] = syscall.EscapeArg(a)
 	}
 	script := "$p = Start-Process -FilePath " + psQuote(exe) +
-		" -ArgumentList " + strings.Join(quoted, ",") +
+		" -ArgumentList " + psQuote(strings.Join(escaped, " ")) +
 		" -Verb RunAs -Wait -PassThru; exit $p.ExitCode"
 
 	cmd := exec.Command("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)

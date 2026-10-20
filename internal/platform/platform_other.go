@@ -4,13 +4,31 @@
 // Hors Windows, ces fonctions servent seulement à compiler et tester le projet.
 package platform
 
-import "os"
+import (
+	"io/fs"
+	"os"
+	"strconv"
+)
 
 // IsElevated indique si le processus tourne en root.
 func IsElevated() bool { return os.Geteuid() == 0 }
 
 // EnableVirtualTerminal : les terminaux Unix gèrent déjà les couleurs ANSI.
 func EnableVirtualTerminal() bool { return true }
+
+// TerminalWidth lit $COLUMNS, 80 par défaut.
+func TerminalWidth() int {
+	if w, err := strconv.Atoi(os.Getenv("COLUMNS")); err == nil && w >= 20 {
+		return w
+	}
+	return 80
+}
+
+// IsHidden : hors Windows, seuls les noms commençant par un point sont cachés (géré par l'appelant).
+func IsHidden(fs.FileInfo) bool { return false }
+
+// NativeSudoInline : le sudo de Windows n'existe pas ici.
+func NativeSudoInline() bool { return false }
 
 // RunSelfElevated n'est pas pris en charge hors Windows.
 func RunSelfElevated(args ...string) int { return 1 }

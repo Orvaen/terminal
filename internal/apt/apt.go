@@ -16,6 +16,10 @@ var Version = "dev"
 
 var stdout io.Writer = os.Stdout
 
+// Elevate relance « apt <args> » en administrateur. Le shell terminal.exe la remplace,
+// car son exécutable n'est pas apt.exe.
+var Elevate = func(args ...string) int { return platform.RunSelfElevated(args...) }
+
 // Run exécute apt avec les arguments donnés et renvoie le code de sortie.
 func Run(args []string) int {
 	inv := Parse(args)
@@ -101,7 +105,7 @@ func cmdFullUpgrade() int {
 		wu = windowsUpdate(false)
 	} else {
 		ui.Info("Ouverture d'une fenêtre administrateur pour Windows Update…")
-		wu = platform.RunSelfElevated("windows-update", "--pause")
+		wu = Elevate("windows-update", "--pause")
 	}
 	if first != 0 {
 		return first
