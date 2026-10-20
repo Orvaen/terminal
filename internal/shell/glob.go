@@ -32,7 +32,7 @@ var errTooManyFiles = errors.New("trop de fichiers pour ce motif (plus de 200 00
 
 // expandLine découpe une commande en arguments et développe ~, les accolades et les jokers.
 func expandLine(text string) ([]string, error) {
-	words, err := tokenizeWords(text, homeDir())
+	words, err := tokenizeWords(text, homeDir(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +43,10 @@ func expandLine(text string) ([]string, error) {
 func expandWords(words []word) ([]string, error) {
 	var out []string
 	for _, w := range words {
+		if w.assign { // NOM=valeur : la valeur est gardée telle quelle
+			out = append(out, w.String())
+			continue
+		}
 		for _, b := range expandBraces(w) {
 			matches, err := globWord(b)
 			if err != nil {
@@ -452,17 +456,18 @@ func parseClass(w word, i int) (patItem, int, bool) {
 }
 
 func (p pattern) match(name string) bool {
-	return matchItems(p.items, []rune(name))
+	return matchItems(p.items, []rune(name), globCaseInsensitive)
 }
 
-func foldRune(r rune) rune {
-	if globCaseInsensitive {
+func foldRune(r rune, fold bool) rune {
+	if fold {
 		return unicode.ToLower(r)
 	}
 	return r
 }
 
-func matchItems(items []patItem, s []rune) bool {
+// matchItems : le texte correspond-il au motif ? fold : sans tenir compte de la casse.
+func matchItems(items []patItem, s []rune, fold bool) bool {
 	// Correspondance avec retour arrière sur la dernière étoile (linéaire en pratique).
 	pi, si := 0, 0
 	starP, starS := -1, 0
@@ -479,13 +484,13 @@ func matchItems(items []patItem, s []rune) bool {
 				si++
 				continue
 			case '[':
-				if classMatch(it, s[si]) {
+				if classMatch(it, s[si], fold) {
 					pi++
 					si++
 					continue
 				}
 			default:
-				if foldRune(it.r) == foldRune(s[si]) {
+				if foldRune(it.r, fold) == foldRune(s[si], fold) {
 					pi++
 					si++
 					continue
@@ -506,11 +511,11 @@ func matchItems(items []patItem, s []rune) bool {
 	return pi == len(items)
 }
 
-func classMatch(it patItem, r rune) bool {
-	r = foldRune(r)
+func classMatch(it patItem, r rune, fold bool) bool {
+	r = foldRune(r, fold)
 	in := false
 	for _, rg := range it.ranges {
-		lo, hi := foldRune(rg[0]), foldRune(rg[1])
+		lo, hi := foldRune(rg[0], fold), foldRune(rg[1], fold)
 		if lo <= r && r <= hi {
 			in = true
 			break

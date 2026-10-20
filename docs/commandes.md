@@ -109,7 +109,7 @@ Une ligne qui commence par une espace n'est pas gardée dans l'historique.
 | `echo [-n] [texte]` | Affiche du texte |
 | `clear` | Efface l'écran |
 | `which <commande>` | Indique si une commande est intégrée, ou où se trouve le programme |
-| `export NOM=valeur`, `unset NOM`, `env` | Variables d'environnement |
+| `export NOM=valeur`, `unset NOM`, `set`, `env`, `printenv [NOM]` | Variables (voir [Variables](#variables)) |
 | `open [chemin]` | Ouvre un dossier ou un fichier dans l'Explorateur Windows |
 | `help [commande]`, `exit [code]` | Aide (`help prompt`, `help path`, ou `<commande> --help`), quitter |
 
@@ -153,6 +153,104 @@ Les règles sont celles de bash :
 - Une redirection vers un motif qui désigne plusieurs fichiers (`> *.txt`) est refusée, comme dans bash.
 
 
+## Variables
+
+Comme dans bash. `help variables` en donne le résumé dans le terminal.
+
+```bash
+NOM=Rayan                       # variable du terminal (les programmes ne la voient pas)
+export NODE_ENV=production      # transmise aux programmes lancés ensuite
+NODE_ENV=test npm test          # seulement pour cette commande
+echo "Bonjour $NOM, tu es dans $PWD"
+cd $HOME/projets
+unset NOM
+```
+
+| Écriture | Résultat | Exemple (`f=src/app.test.ts`) |
+|---|---|---|
+| `$NOM`, `${NOM}` | La valeur | `${f}` → `src/app.test.ts` |
+| `${NOM:-défaut}` | `défaut` si la variable est vide ou absente | `${PORT:-3000}` |
+| `${NOM:=défaut}` | Pareil, et l'enregistre | `${PORT:=3000}` |
+| `${NOM:+autre}` | `autre` si la variable n'est pas vide | `${DEBUG:+--verbose}` |
+| `${NOM:?message}` | Erreur (la commande ne se lance pas) si vide | `${TOKEN:?définis TOKEN}` |
+| `${#NOM}` | Longueur | `${#f}` → `15` |
+| `${NOM#motif}`, `${NOM##motif}` | Retire le début (le plus court, le plus long) | `${f##*/}` → `app.test.ts` |
+| `${NOM%motif}`, `${NOM%%motif}` | Retire la fin | `${f%.*}` → `src/app.test` |
+| `${NOM/a/b}`, `${NOM//a/b}` | Remplace la première, toutes | `${f//t/T}` → `src/app.TesT.Ts` |
+| `${NOM:début:longueur}` | Extrait | `${f:4:3}` → `app` |
+| `${NOM^^}`, `${NOM,,}`, `${NOM^}` | MAJUSCULES, minuscules, Première lettre | `${f^^}` → `SRC/APP.TEST.TS` |
+| `$(commande)`, `` `commande` `` | La sortie de la commande | `git checkout -b "fix-$(git rev-parse --short HEAD)"` |
+| `$((calcul))` | Un calcul entier (`+ - * / % ** ( ) < == && ?:`…) | `$((PORT + 1))` |
+| `$env:NOM` | La syntaxe de PowerShell, acceptée aussi | `$env:USERPROFILE` |
+
+Les règles de bash :
+
+- **Entre `"…"`**, la valeur reste un seul argument, même avec des espaces : `cd "$DOSSIER"`.
+  **Hors guillemets**, elle est découpée aux espaces, et ses jokers sont développés.
+- **Entre `'…'`**, rien n'est remplacé : `echo '$HOME'` affiche `$HOME`. `\$` donne aussi un vrai dollar.
+- Une variable vide hors guillemets disparaît ; `"$VIDE"` reste un argument vide.
+- Une commande `$(…)` tourne à part : son `cd`, ses `export` et son `exit` ne touchent pas ta session.
+- Sous Windows, les noms des variables d'**environnement** ne tiennent pas compte de la casse (`$path` = `$PATH`) ;
+  ceux des variables du terminal, si.
+
+### Paramètres spéciaux
+
+| Paramètre | Valeur |
+|---|---|
+| `$?` | Code de sortie de la dernière commande (0 : réussite) |
+| `$$` | Numéro de processus du terminal |
+| `$_` | Dernier argument de la commande précédente (`mkdir projet && cd $_`) |
+| `$0` | `terminal` |
+| `$#`, `$@`, `$*`, `$1`… | Pas d'arguments dans une session : `0` et vides |
+| `$-` | Options du shell (`hiB` en interactif) |
+| `$!` | Vide : pas de tâches de fond |
+
+### Variables définies au démarrage
+
+Les mêmes que sous Linux. Celles que Windows (ou le programme qui a ouvert le terminal) définit déjà sont gardées.
+
+| Variable | Valeur | Transmise aux programmes |
+|---|---|---|
+| `HOME` | Ton dossier personnel (`C:\Users\toi`) | oui |
+| `USER`, `LOGNAME` | Ton nom d'utilisateur Windows | oui |
+| `PWD`, `OLDPWD` | Le dossier actuel, le précédent (mis à jour par `cd`) | oui |
+| `SHLVL` | Niveau d'imbrication (1, ou 2 dans un terminal ouvert depuis un autre) | oui |
+| `TERM`, `COLORTERM` | `xterm-256color`, `truecolor` : les programmes savent qu'ils peuvent mettre des couleurs | oui |
+| `LANG` | La langue de Windows au format Linux, en UTF-8 (`fr_BE.UTF-8`) | oui |
+| `PATH`, `SHELL` | Le PATH de Windows ; le `sh` de Git (pour `make`) | oui |
+| `TERM_PROGRAM`, `ORVAEN_TERMINAL` | `OrvaenTerminal` et sa version, pour qu'un script reconnaisse le terminal | oui |
+| `HOSTNAME` | Le nom du PC | non |
+| `HOSTTYPE`, `MACHTYPE` | `x86_64` (ou `aarch64`), `x86_64-pc-msys` | non |
+| `OSTYPE` | `msys`, comme Git Bash : les scripts qui testent `$OSTYPE` reconnaissent Windows | non |
+| `UID`, `EUID` | `0` en administrateur (comme root), `1000` sinon ; en lecture seule | non |
+| `PPID`, `BASHPID` | Le processus parent, celui du terminal | non |
+| `IFS` | Espace, tabulation, retour à la ligne : où couper les valeurs hors guillemets | non |
+| `PS1`, `PS2`, `PS4` | Le prompt (voir plus bas), `> `, `+ ` | non |
+| `HISTFILE`, `HISTSIZE`, `HISTFILESIZE`, `HISTCONTROL` | Fichier d'historique, 1000 lignes, `ignoreboth` (ni doublons, ni lignes commençant par une espace) | non |
+| `RANDOM`, `SRANDOM` | Un nombre au hasard à chaque lecture (0–32767, 32 bits) | non |
+| `SECONDS` | Secondes depuis l'ouverture du terminal (`SECONDS=0` remet à zéro) | non |
+| `EPOCHSECONDS`, `EPOCHREALTIME` | L'heure Unix (en secondes, à la microseconde) | non |
+| `LINENO` | Numéro de la ligne tapée | non |
+| `COLUMNS`, `LINES` | Taille de la fenêtre | non |
+
+`export HOSTNAME` (par exemple) transmet aussi une variable de la deuxième moitié. Ne sont pas définies, comme sur
+un Linux sans bureau : `EDITOR`, `PAGER`, `TMPDIR`, et les `XDG_*` (définir `XDG_CONFIG_HOME` ferait chercher leurs
+réglages ailleurs que dans `AppData` à beaucoup d'outils).
+
+### PS1
+
+`PS1` change le prompt pour la session, avec les séquences de bash : `\u` (utilisateur), `\h` (PC), `\w` (dossier),
+`\W` (nom du dossier), `\$` (`$`, ou `#` en administrateur), `\t` (heure), `\n`, `\e[…m` (couleurs), et aussi
+`$(…)` ou `$VAR`, développés à chaque prompt :
+
+```bash
+PS1='\[\e[32m\]\u@\h\[\e[0m\]:\w\$ '
+```
+
+Les éléments du terminal (`{dir}`, `{git}`…, voir [Le prompt](#le-prompt)) y marchent aussi. `unset PS1` revient
+au style choisi avec `prompt`, qui est le seul gardé pour les prochaines fenêtres.
+
+## Tubes et redirections
 
 Le terminal relie lui-même les commandes, comme bash :
 
@@ -169,8 +267,8 @@ Le terminal relie lui-même les commandes, comme bash :
 Les commandes intégrées y participent : `ls | grep txt` (un nom par ligne, comme sous Linux), `echo … > f`,
 `cat < f`. Les fichiers sont écrits en UTF-8. Le code de sortie est celui de la dernière commande du tube.
 
-PowerShell prend le relais pour ce que le terminal ne gère pas : une variable (`$env:PATH`), une commande entre
-`` ` ``, un `&` seul, ou une commande PowerShell dans le tube (`Get-Process | Select -First 3`, `dir | …`).
+PowerShell prend le relais pour ce que le terminal ne gère pas : un `&` seul, ou une commande PowerShell dans le
+tube (`Get-Process | Select -First 3`, `dir | …`).
 
 ## Tout le reste
 
@@ -192,9 +290,8 @@ Pour l'installer : apt install hurl   (Orange-OpenSource.Hurl)
 Pour reconnaître les commandes PowerShell sans le lancer à chaque fois, le terminal garde leur liste dans un
 fichier, rafraîchi chaque semaine.
 
-Les lignes qui contiennent une variable (`$env:...`) sont aussi confiées à PowerShell, voir
-[Tubes et redirections](#tubes-et-redirections). Elles prennent alors une demi-seconde de plus, le temps que
-PowerShell démarre.
+Une ligne confiée à PowerShell lui est passée telle quelle : ses `$` (`$_`, `$x = …`) sont pour PowerShell, pas
+pour le terminal. Elle prend une demi-seconde de plus, le temps que PowerShell démarre.
 
 ## Coreutils de Microsoft
 
@@ -299,5 +396,5 @@ Exécute la ligne puis quitte, avec le code de sortie de la dernière commande. 
 
 ## Limites actuelles
 
-- Pas de variables façon Linux (`$HOME`) : une ligne qui contient `$` est confiée à PowerShell, qui utilise `$env:HOME`.
+- Pas de tableaux (`${tab[0]}`, `$PIPESTATUS`), ni de `$1` dans une session, ni d'options `set -e`/`set -x`.
 - Pas de `&` pour lancer une commande en arrière-plan : utilise `run -p` (voir [run](scripts.md)).

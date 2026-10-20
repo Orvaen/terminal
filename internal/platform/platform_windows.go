@@ -110,6 +110,38 @@ func TerminalWidth() int {
 	return 80
 }
 
+// TerminalHeight renvoie la hauteur visible de la console (24 par défaut).
+func TerminalHeight() int {
+	h, err := syscall.GetStdHandle(syscall.STD_OUTPUT_HANDLE)
+	if err != nil {
+		return 24
+	}
+	var info consoleScreenBufferInfo
+	if r, _, _ := procGetConsoleScreenBufferInfo.Call(uintptr(h), uintptr(unsafe.Pointer(&info))); r == 0 {
+		return 24
+	}
+	if n := int(info.Window.Bottom-info.Window.Top) + 1; n >= 5 {
+		return n
+	}
+	return 24
+}
+
+var procGetUserDefaultLocaleName = kernel32.NewProc("GetUserDefaultLocaleName")
+
+// Locale : la langue choisie dans Windows au format de LANG (« fr-BE » → « fr_BE »), « C » si inconnue.
+func Locale() string {
+	buf := make([]uint16, 85) // LOCALE_NAME_MAX_LENGTH
+	r, _, _ := procGetUserDefaultLocaleName.Call(uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+	if r == 0 {
+		return "C"
+	}
+	name := syscall.UTF16ToString(buf)
+	if name == "" {
+		return "C"
+	}
+	return strings.ReplaceAll(name, "-", "_")
+}
+
 // IsHidden indique si un fichier porte l'attribut « caché » de Windows.
 func IsHidden(info fs.FileInfo) bool {
 	if d, ok := info.Sys().(*syscall.Win32FileAttributeData); ok {

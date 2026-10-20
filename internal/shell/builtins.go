@@ -35,37 +35,39 @@ var builtins map[string]builtin
 var builtinOrder = []string{
 	"apt", "sudo", "docker", "req", "run",
 	"ls", "cd", "pwd", "cat", "touch", "mkdir", "rm", "rmdir", "cp", "mv",
-	"echo", "clear", "which", "export", "unset", "env", "path", "open", "prompt", "help", "exit",
+	"echo", "clear", "which", "export", "unset", "set", "env", "printenv", "path", "open", "prompt", "help", "exit",
 }
 
 func init() {
 	builtins = map[string]builtin{
-		"apt":    {runApt, "apt <commande> [paquets]", "Gestion des logiciels (winget) et mises à jour Windows"},
-		"docker": {runDocker, "docker <commande>", "Docker léger, sans Docker Desktop (apt install docker)"},
-		"req":    {runReq, "req <fichier.http> | req nouveau", "Teste des requêtes HTTP (GET, POST...) décrites dans un fichier"},
-		"run":    {runScripts, "run [script] | run -p <a> <b>", "Lance les scripts du projet (terminal.json), en parallèle avec -p"},
-		"sudo":   {runSudo, "sudo <commande>", "Lance une commande en administrateur"},
-		"ls":     {runLs, "ls [-a] [-l] [-h] [chemin...]", "Liste un dossier"},
-		"cd":     {runCd, "cd [dossier | - | ~]", "Change de dossier (accepte /c/Users/...)"},
-		"pwd":    {runPwd, "pwd", "Affiche le dossier courant"},
-		"cat":    {runCat, "cat [fichier...]", "Affiche le contenu de fichiers"},
-		"touch":  {runTouch, "touch <fichier...>", "Crée un fichier vide ou met à jour sa date"},
-		"mkdir":  {runMkdir, "mkdir [-p] <dossier...>", "Crée des dossiers"},
-		"rm":     {runRm, "rm [-r] [-f] <chemin...>", "Supprime des fichiers (et dossiers avec -r)"},
-		"rmdir":  {runRmdir, "rmdir <dossier...>", "Supprime des dossiers vides"},
-		"cp":     {runCp, "cp [-r] <source...> <destination>", "Copie des fichiers ou dossiers"},
-		"mv":     {runMv, "mv <source...> <destination>", "Déplace ou renomme"},
-		"echo":   {runEcho, "echo [-n] [texte...]", "Affiche du texte"},
-		"clear":  {runClear, "clear", "Efface l'écran"},
-		"which":  {runWhich, "which <commande...>", "Indique où se trouve une commande"},
-		"export": {runExport, "export NOM=valeur", "Définit une variable d'environnement"},
-		"unset":  {runUnset, "unset NOM", "Supprime une variable d'environnement"},
-		"env":    {runEnv, "env", "Liste les variables d'environnement"},
-		"open":   {runOpen, "open [chemin]", "Ouvre un dossier ou fichier dans l'Explorateur"},
-		"path":   {runPath, "path [qui|monter|masquer|nettoyer]", "Voit et range le PATH (quel make, quel python gagne…)"},
-		"prompt": {runPrompt, "prompt [style]", "Change l'apparence du prompt (aperçu de chaque style)"},
-		"help":   {runHelp, "help", "Affiche cette aide"},
-		"exit":   {runExit, "exit [code]", "Quitte le terminal"},
+		"apt":      {runApt, "apt <commande> [paquets]", "Gestion des logiciels (winget) et mises à jour Windows"},
+		"docker":   {runDocker, "docker <commande>", "Docker léger, sans Docker Desktop (apt install docker)"},
+		"req":      {runReq, "req <fichier.http> | req nouveau", "Teste des requêtes HTTP (GET, POST...) décrites dans un fichier"},
+		"run":      {runScripts, "run [script] | run -p <a> <b>", "Lance les scripts du projet (terminal.json), en parallèle avec -p"},
+		"sudo":     {runSudo, "sudo <commande>", "Lance une commande en administrateur"},
+		"ls":       {runLs, "ls [-a] [-l] [-h] [chemin...]", "Liste un dossier"},
+		"cd":       {runCd, "cd [dossier | - | ~]", "Change de dossier (accepte /c/Users/...)"},
+		"pwd":      {runPwd, "pwd", "Affiche le dossier courant"},
+		"cat":      {runCat, "cat [fichier...]", "Affiche le contenu de fichiers"},
+		"touch":    {runTouch, "touch <fichier...>", "Crée un fichier vide ou met à jour sa date"},
+		"mkdir":    {runMkdir, "mkdir [-p] <dossier...>", "Crée des dossiers"},
+		"rm":       {runRm, "rm [-r] [-f] <chemin...>", "Supprime des fichiers (et dossiers avec -r)"},
+		"rmdir":    {runRmdir, "rmdir <dossier...>", "Supprime des dossiers vides"},
+		"cp":       {runCp, "cp [-r] <source...> <destination>", "Copie des fichiers ou dossiers"},
+		"mv":       {runMv, "mv <source...> <destination>", "Déplace ou renomme"},
+		"echo":     {runEcho, "echo [-n] [texte...]", "Affiche du texte"},
+		"clear":    {runClear, "clear", "Efface l'écran"},
+		"which":    {runWhich, "which <commande...>", "Indique où se trouve une commande"},
+		"export":   {runExport, "export NOM=valeur", "Transmet une variable aux programmes (help variables)"},
+		"unset":    {runUnset, "unset NOM...", "Supprime une variable"},
+		"env":      {runEnv, "env", "Liste les variables d'environnement"},
+		"printenv": {runPrintenv, "printenv [NOM...]", "Affiche des variables d'environnement"},
+		"set":      {runSet, "set", "Liste toutes les variables (terminal, environnement, $RANDOM…)"},
+		"open":     {runOpen, "open [chemin]", "Ouvre un dossier ou fichier dans l'Explorateur"},
+		"path":     {runPath, "path [qui|monter|masquer|nettoyer]", "Voit et range le PATH (quel make, quel python gagne…)"},
+		"prompt":   {runPrompt, "prompt [style]", "Change l'apparence du prompt (aperçu de chaque style)"},
+		"help":     {runHelp, "help", "Affiche cette aide"},
+		"exit":     {runExit, "exit [code]", "Quitte le terminal"},
 	}
 	builtins["apt-get"] = builtins["apt"]
 	builtins["docker-compose"] = builtin{func(s *Shell, a []string) int { return runDocker(s, append([]string{"compose"}, a...)) }, "", ""}
@@ -332,6 +334,10 @@ func runCd(s *Shell, args []string) int {
 		return 1
 	}
 	s.prevDir = cur
+	os.Setenv("OLDPWD", cur)
+	if now, err := os.Getwd(); err == nil {
+		os.Setenv("PWD", now)
+	}
 	return 0
 }
 
@@ -714,24 +720,83 @@ func runExport(s *Shell, args []string) int {
 	if len(args) == 0 {
 		return runEnv(s, nil)
 	}
-	code := 0
+	code, unexport := 0, false
 	for _, a := range args {
-		k, v, ok := strings.Cut(a, "=")
-		if !ok || k == "" {
-			s.errorf("export: « %s » : utilise NOM=valeur", a)
+		switch {
+		case a == "-n":
+			unexport = true
+			continue
+		case a == "-p":
+			for _, kv := range s.allVars() {
+				if _, exported := os.LookupEnv(kv[0]); exported {
+					fmt.Fprintf(s.out, "declare -x %s=%s\n", kv[0], shellQuote(kv[1]))
+				}
+			}
+			continue
+		case strings.HasPrefix(a, "-"):
+			s.errorf("export: %s : option non valable (options : -n, -p)", a)
+			return 2
+		}
+		k, v, hasValue := strings.Cut(a, "=")
+		if !validName(k) {
+			s.errorf("export: « %s » : identifiant non valable", a)
 			code = 1
 			continue
 		}
-		_ = os.Setenv(k, v)
+		if unexport {
+			s.unexportVar(k)
+			continue
+		}
+		if hasValue {
+			if err := s.setVar(k, v); err != nil {
+				s.errorf("export: %v", err)
+				code = 1
+				continue
+			}
+		}
+		s.exportVar(k)
 	}
 	return code
 }
 
 func runUnset(s *Shell, args []string) int {
+	code := 0
 	for _, a := range args {
-		_ = os.Unsetenv(a)
+		if a == "-v" || a == "-f" {
+			continue
+		}
+		if err := s.unsetVar(a); err != nil {
+			s.errorf("unset: %v", err)
+			code = 1
+		}
+	}
+	return code
+}
+
+func runSet(s *Shell, args []string) int {
+	if len(args) > 0 {
+		s.errorf("set : les options de bash (-e, -x, -o…) ne sont pas gérées ; « set » seul liste les variables")
+		return 2
+	}
+	for _, kv := range s.allVars() {
+		fmt.Fprintf(s.out, "%s=%s\n", kv[0], shellQuote(kv[1]))
 	}
 	return 0
+}
+
+func runPrintenv(s *Shell, args []string) int {
+	if len(args) == 0 {
+		return runEnv(s, nil)
+	}
+	code := 0
+	for _, a := range args {
+		if v, ok := os.LookupEnv(a); ok {
+			fmt.Fprintln(s.out, v)
+		} else {
+			code = 1
+		}
+	}
+	return code
 }
 
 func runEnv(s *Shell, args []string) int {
@@ -790,7 +855,7 @@ func runHelp(s *Shell, args []string) int {
 		fmt.Fprintf(s.out, "  %-36s %s\n", b.usage, b.help)
 	}
 	fmt.Fprint(s.out, `
-Aide d'une commande : help <commande> (ex. help prompt).
+Aide d'une commande : help <commande> (ex. help prompt). Variables : help variables.
 Aussi : apt-get (= apt), docker-compose (= docker compose), ll (= ls -l).
 Enchaîne avec  &&  ||  ;   et relie avec  |  >  >>  <  2>&1  (comme bash).
 Tout le reste est lancé tel quel : programmes Windows (git, code, notepad...)

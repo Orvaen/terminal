@@ -11,7 +11,7 @@ import (
 )
 
 func TestParsePipeline(t *testing.T) {
-	got, err := parsePipeline(`cat "a | b.txt" | grep -E 'x|y' | sort > tri.txt 2>&1`)
+	got, err := parsePipeline(`cat "a | b.txt" | grep -E 'x|y' | sort > tri.txt 2>&1`, expandLine)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +24,7 @@ func TestParsePipeline(t *testing.T) {
 		t.Fatalf("obtenu %#v", got)
 	}
 
-	got, err = parsePipeline(`sort < "mes données.txt" >> sortie.log 2> erreurs.log`)
+	got, err = parsePipeline(`sort < "mes données.txt" >> sortie.log 2> erreurs.log`, expandLine)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,27 +33,27 @@ func TestParsePipeline(t *testing.T) {
 		t.Fatalf("obtenu %#v", got)
 	}
 
-	got, _ = parsePipeline(`make &> build.log`)
+	got, _ = parsePipeline(`make &> build.log`, expandLine)
 	if got[0].out != "build.log" || !got[0].bothFile || got[0].text != "make" {
 		t.Fatalf("&> : %#v", got)
 	}
-	got, _ = parsePipeline(`echo 12>f`)
+	got, _ = parsePipeline(`echo 12>f`, expandLine)
 	if got[0].text != "echo 12" || got[0].out != "f" {
 		t.Fatalf("12>f : le 2 fait partie du mot, obtenu %#v", got)
 	}
 }
 
 func TestParsePipelineFallbacksAndErrors(t *testing.T) {
-	for _, line := range []string{`echo $env:PATH`, "echo `date`", `Get-Process | Select -First 3 &`, `ls 1>&2`} {
-		if _, err := parsePipeline(line); !errors.Is(err, errNeedsPowerShell) {
+	for _, line := range []string{`Get-Process | Select -First 3 &`, `ls 1>&2`} {
+		if _, err := parsePipeline(line, expandLine); !errors.Is(err, errNeedsPowerShell) {
 			t.Errorf("%q : PowerShell attendu, obtenu %v", line, err)
 		}
 	}
-	if _, err := parsePipeline(`grep '$'`); err != nil {
+	if _, err := parsePipeline(`grep '$'`, expandLine); err != nil {
 		t.Errorf("un $ entre guillemets ne doit pas partir dans PowerShell : %v", err)
 	}
 	for _, line := range []string{`| grep x`, `ls |`, `ls >`, `sort <`, `cat "x`} {
-		if _, err := parsePipeline(line); err == nil || errors.Is(err, errNeedsPowerShell) {
+		if _, err := parsePipeline(line, expandLine); err == nil || errors.Is(err, errNeedsPowerShell) {
 			t.Errorf("%q : erreur de syntaxe attendue, obtenu %v", line, err)
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // IsElevated indique si le processus tourne en root.
@@ -68,3 +69,23 @@ func RegistryPath(scope string) []PathEntry { return nil }
 func WritePath(scope string, raw []string) error { return errNotWindows }
 
 var errNotWindows = errors.New("disponible seulement sous Windows")
+
+// TerminalHeight lit $LINES, 24 par défaut.
+func TerminalHeight() int {
+	if h, err := strconv.Atoi(os.Getenv("LINES")); err == nil && h >= 5 {
+		return h
+	}
+	return 24
+}
+
+// Locale : la langue de l'utilisateur au format de LANG (fr_BE), « C » si inconnue.
+func Locale() string {
+	for _, k := range []string{"LC_ALL", "LANG"} {
+		if v := os.Getenv(k); v != "" {
+			if l, _, _ := strings.Cut(v, "."); l != "" {
+				return l
+			}
+		}
+	}
+	return "C"
+}

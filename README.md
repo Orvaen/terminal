@@ -20,7 +20,7 @@ $ sudo apt full-upgrade
 ## Fonctionnalités
 
 - **Prompt au choix** : 8 styles (minimal, flèche, blocs, Git, PowerShell…) ou le tien, avec `prompt`.
-- **Commandes Linux** : `ls`, `cd`, `cat`, `rm`, `cp`, `mv`, `mkdir -p`, enchaînements `&&` et `||`, vrais tubes et redirections (`|`, `>`, `2>&1`), jokers (`*.log`, `src/**/*.ts`, `{a,b}`), complétion avec Tab.
+- **Commandes Linux** : `ls`, `cd`, `cat`, `rm`, `cp`, `mv`, `mkdir -p`, enchaînements `&&` et `||`, vrais tubes et redirections (`|`, `>`, `2>&1`), jokers (`*.log`, `src/**/*.ts`, `{a,b}`), variables (`$HOME`, `${f%.*}`, `$(commande)`, `$((1+2))`) et toutes celles d'un shell Linux, complétion avec Tab.
 - **Coreutils de Microsoft** : `apt install coreutils` ajoute `grep`, `head`, `sort`, `find`, `xargs`… (78 commandes Unix natives), branchées sur le terminal.
 - **apt** : installe et met à jour tes logiciels via winget, et Windows via Windows Update. Comprend les noms Linux (`code`, `fd-find`…).
 - **apt deps** : détecte les outils dont un projet a besoin (Node, Go, Python, Docker, make…) et les installe, avec les dépendances du projet.

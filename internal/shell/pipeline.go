@@ -36,7 +36,8 @@ var errNeedsPowerShell = errors.New("PowerShell")
 
 // parsePipeline découpe une ligne en commandes reliées par |, avec leurs redirections.
 // Renvoie errNeedsPowerShell pour ce que le terminal ne sait pas faire lui-même.
-func parsePipeline(line string) ([]stage, error) {
+// expand développe la cible d'une redirection (variables, jokers).
+func parsePipeline(line string, expand func(string) ([]string, error)) ([]stage, error) {
 	var (
 		stages []stage
 		cur    stage
@@ -70,14 +71,19 @@ func parsePipeline(line string) ([]stage, error) {
 				break
 			}
 			if r == '$' || r == '`' {
-				return "", i, errNeedsPowerShell
+				end, err := skipExpansion(runes, i)
+				if err != nil {
+					return "", i, err
+				}
+				i = end + 1
+				continue
 			}
 			i++
 		}
 		if q != 0 {
 			return "", i, errUnclosedQuote
 		}
-		toks, err := expandLine(string(runes[start:i]))
+		toks, err := expand(string(runes[start:i]))
 		if err != nil {
 			return "", i, err
 		}
@@ -118,6 +124,21 @@ func parsePipeline(line string) ([]stage, error) {
 
 	for i := 0; i < n; i++ {
 		r := runes[i]
+		if (r == '$' || r == '`') && quote != '\'' {
+			end, err := skipExpansion(runes, i)
+			if err != nil {
+				return nil, err
+			}
+			b.WriteString(string(runes[i : end+1]))
+			i = end
+			continue
+		}
+		if r == '\\' && quote != '\'' && i+1 < n && strings.ContainsRune("$`\"", runes[i+1]) {
+			b.WriteRune(r)
+			b.WriteRune(runes[i+1])
+			i++
+			continue
+		}
 		if quote != 0 {
 			b.WriteRune(r)
 			if r == quote {
@@ -129,8 +150,6 @@ func parsePipeline(line string) ([]stage, error) {
 		case '\'', '"':
 			quote = r
 			b.WriteRune(r)
-		case '$', '`':
-			return nil, errNeedsPowerShell
 		case '|':
 			if err := endStage(); err != nil {
 				return nil, err
@@ -266,7 +285,8 @@ func (r resolved) guard(name string) error {
 
 // runSpecial exécute une ligne avec tubes ou redirections, ou la confie à PowerShell.
 func (s *Shell) runSpecial(text string) int {
-	stages, err := parsePipeline(text)
+	// Premier passage sans développer : une cmdlet PowerShell garde ses $ pour PowerShell.
+	raw, err := parsePipeline(text, expandLine)
 	if errors.Is(err, errNeedsPowerShell) {
 		return s.powershell(text)
 	}
@@ -274,13 +294,25 @@ func (s *Shell) runSpecial(text string) int {
 		s.errorf("terminal: %v", err)
 		return 2
 	}
+	for _, st := range raw {
+		if s.psOnly(st.text) {
+			return s.powershell(text)
+		}
+	}
+	stages, err := parsePipeline(text, s.expandTarget)
+	if err != nil {
+		s.errorf("terminal: %v", err)
+		return 1
+	}
 	cmds := make([]resolved, len(stages))
+	var assigns []assignment
 	for i, st := range stages {
-		args, err := expandLine(st.text)
+		as, args, err := s.expandCommand(st.text)
 		if err != nil {
 			s.errorf("terminal: %v", err)
-			return 2
+			return 1
 		}
+		assigns = append(assigns, as...)
 		if len(args) == 0 {
 			s.errorf("terminal: erreur de syntaxe près de « | »")
 			return 2
@@ -312,6 +344,7 @@ func (s *Shell) runSpecial(text string) int {
 		}
 		cmds[i] = r
 	}
+	defer s.withEnv(assigns)()
 	return s.runPipeline(stages, cmds)
 }
 
@@ -411,6 +444,11 @@ func (s *Shell) runPipeline(stages []stage, cmds []resolved) int {
 			}
 		}
 		if c.builtin != nil {
+			// Comme dans bash, une commande d'un tube tourne à part : copie des variables du terminal.
+			vars := make(map[string]string, len(s.vars))
+			for k, v := range s.vars {
+				vars[k] = v
+			}
 			wg.Add(1)
 			go func(i int, c resolved, e ends) {
 				defer wg.Done()
@@ -420,7 +458,9 @@ func (s *Shell) runPipeline(stages []stage, cmds []resolved) int {
 					in = bufio.NewReader(e.stdin)
 				}
 				sub := &Shell{in: in, out: e.out, errOut: e.err, width: s.width, admin: s.admin, prevDir: s.prevDir,
-					color: s.color && e.out == out}
+					color: s.color && e.out == out, vars: vars, ps1: s.ps1, promptFmt: s.promptFmt, last: s.last,
+					lastArg: s.lastArg, started: s.started, secondsAt: s.secondsAt, lineno: s.lineno,
+					interactive: s.interactive}
 				codes[i] = c.builtin.run(sub, c.args)
 			}(i, c, e)
 			continue

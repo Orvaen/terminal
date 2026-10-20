@@ -46,7 +46,7 @@ func runPrompt(s *Shell, args []string) int {
 			s.errorf("prompt: %v", err)
 			return 1
 		}
-		s.promptFmt = format
+		s.promptFmt, s.ps1 = format, ""
 		fmt.Fprintln(s.out, "Ton prompt est enregistré. Aperçu :")
 		fmt.Fprint(s.out, indentPreview(renderPrompt(format, ctx)))
 		return 0
@@ -65,7 +65,7 @@ func runPrompt(s *Shell, args []string) int {
 		s.errorf("prompt: %v", err)
 		return 1
 	}
-	s.promptFmt = t.Format
+	s.promptFmt, s.ps1 = t.Format, ""
 	fmt.Fprintf(s.out, "Style « %s » choisi, il est gardé pour les prochaines fenêtres.\n", t.Name)
 	return 0
 }

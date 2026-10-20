@@ -250,6 +250,11 @@ func tokenValue(name string, c promptContext) (string, bool) {
 			sym = "#"
 		}
 		return ansi(c, "1;"+symbolColor) + sym + ansi(c, "0") + " ", true
+	case "signe": // \$ de bash : $, ou # en administrateur
+		if c.Admin {
+			return "#", true
+		}
+		return "$", true
 	case "symbole-fleche":
 		sym := "❯"
 		if c.Admin {

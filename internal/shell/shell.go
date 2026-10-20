@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -40,6 +41,18 @@ type Shell struct {
 	edit        *editor         // saisie touche par touche (nil : saisie par ligne)
 	installed   func() []string // logiciels installés, pour la complétion de « apt remove »
 	historyPath string
+
+	// Variables (vars.go)
+	vars        map[string]string // variables du terminal, non transmises aux programmes
+	ps1         string            // PS1 choisi dans la session (sinon le style de la commande prompt)
+	started     time.Time
+	secondsAt   time.Time // départ de $SECONDS
+	rnd         *rand.Rand
+	lineno      int    // $LINENO
+	lastArg     string // $_
+	interactive bool
+	substDepth  int
+	substStatus int // code de la dernière $(…) d'une ligne (-1 : aucune)
 
 	lastInterrupt atomic.Int64
 }
@@ -76,6 +89,8 @@ func New() *Shell {
 		s.historyPath = historyFile()
 		s.edit.history = loadHistory(s.historyPath)
 	}
+	s.initVars()
+	s.initEnv()
 	return s
 }
 
@@ -92,6 +107,7 @@ func (s *Shell) errorf(format string, a ...any) {
 
 // Interactive lance la boucle « prompt → commande » jusqu'à exit ou Ctrl+Z.
 func (s *Shell) Interactive() int {
+	s.interactive = true
 	if s.color {
 		fmt.Fprint(s.out, "\x1b]0;"+AppName+"\x07")
 	}
@@ -151,6 +167,7 @@ func (s *Shell) Interactive() int {
 
 // run exécute une ligne tapée ; une commande apt peut avoir changé les logiciels installés.
 func (s *Shell) run(line string) {
+	s.lineno++
 	s.RunLine(line)
 	if strings.Contains(strings.ToLower(line), "apt") {
 		apt.InvalidateInstalled()
@@ -181,6 +198,12 @@ func (s *Shell) prompt() string {
 	format := s.promptFmt
 	if format == "" {
 		format = promptFormat(promptConfig{})
+	}
+	if s.ps1 != "" { // PS1 à la bash : \u@\h:\w\$ , $(…) et $VAR développés à chaque prompt
+		format = ps1ToFormat(s.ps1)
+		if v, err := s.expandText(format); err == nil {
+			format = v
+		}
 	}
 	return renderPrompt(format, s.context())
 }
@@ -216,14 +239,30 @@ func (s *Shell) runSegment(seg segment) int {
 	if seg.special {
 		return s.runSpecial(seg.text)
 	}
-	args, err := expandLine(seg.text)
+	if s.psOnly(seg.text) {
+		return s.powershell(seg.text) // cmdlet PowerShell : ses $ sont pour PowerShell
+	}
+	s.substStatus = -1
+	assigns, args, err := s.expandCommand(seg.text)
 	if err != nil {
 		s.errorf("terminal: %v", err)
-		return 2
+		return 1
 	}
 	if len(args) == 0 {
-		return s.last
+		// NOM=valeur seul : variable du terminal
+		for _, a := range assigns {
+			if err := s.setVar(a.name, a.value); err != nil {
+				s.errorf("terminal: %v", err)
+				return 1
+			}
+		}
+		if s.substStatus >= 0 {
+			return s.substStatus
+		}
+		return 0
 	}
+	defer s.withEnv(assigns)()
+	defer func() { s.lastArg = args[len(args)-1] }()
 	if r, ok := s.resolve(args); ok {
 		if err := r.guard(args[0]); err != nil {
 			s.errorf("%v", err)

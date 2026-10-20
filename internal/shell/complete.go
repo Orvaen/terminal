@@ -26,6 +26,17 @@ func (s *Shell) complete(line []rune, pos int) (int, []string) {
 
 	var cands []string
 	filtered := true // les listes de noms sont filtrées ici ; les chemins le sont déjà
+	if strings.HasPrefix(cur, "$") && !strings.ContainsAny(cur, "/\\") {
+		// $HO → $HOME, ${HO → ${HOME}
+		prefix, suffix := "$", ""
+		if strings.HasPrefix(cur, "${") {
+			prefix, suffix = "${", "}"
+		}
+		for _, kv := range s.allVars() {
+			cands = append(cands, prefix+kv[0]+suffix)
+		}
+		return start, filterPrefix(cands, cur, nil)
+	}
 	switch {
 	case len(words) == 0:
 		if strings.ContainsAny(cur, `/\`) || strings.HasPrefix(cur, ".") || strings.HasPrefix(cur, "~") {
