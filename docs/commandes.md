@@ -98,6 +98,15 @@ Quand ce que tu tapes n'est pas une commande intégrée :
 Les lignes qui contiennent un tube (`|`), une redirection (`>`, `<`) ou une variable (`$env:...`) sont aussi
 confiées à PowerShell. Elles prennent alors une demi-seconde de plus, le temps que PowerShell démarre.
 
+## Outils Linux de Git et Makefile
+
+Si Git pour Windows est installé (`apt install git`), le terminal ajoute ses outils Linux à la fin du PATH :
+`sh`, `bash`, `grep`, `sed`, `awk`, `id`, `make` s'il y est… Comme dans Git Bash, `make` trouve alors un shell
+Unix et les recettes des Makefile (`mkdir -p`, `[ … ]`, `$(shell id -u)`) fonctionnent. Les commandes Windows
+du même nom (`find`, `sort`) restent prioritaires.
+
+Pour désactiver ce comportement : variable d'environnement `ORVAEN_NO_UNIX_TOOLS=1`.
+
 ## sudo
 
 | Commande | Ce qui se passe |

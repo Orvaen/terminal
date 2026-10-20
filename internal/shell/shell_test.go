@@ -220,3 +220,33 @@ func TestExit(t *testing.T) {
 		t.Fatalf("rien ne devait s'exécuter après exit : %q", out.String())
 	}
 }
+
+func TestGitUnixTools(t *testing.T) {
+	root := t.TempDir()
+	git := filepath.Join(root, "Git")
+	os.MkdirAll(filepath.Join(git, "cmd"), 0o755)
+	os.MkdirAll(filepath.Join(git, "usr", "bin"), 0o755)
+	os.WriteFile(filepath.Join(git, "usr", "bin", "sh.exe"), nil, 0o755)
+	want := filepath.Join(git, "usr", "bin")
+
+	viaGit := func() (string, error) { return filepath.Join(git, "cmd", "git.exe"), nil }
+	if got := gitUnixDir(viaGit, ""); got != want {
+		t.Errorf("depuis git.exe : %q", got)
+	}
+	noGit := func() (string, error) { return "", os.ErrNotExist }
+	if got := gitUnixDir(noGit, root); got != want {
+		t.Errorf("depuis Program Files : %q", got)
+	}
+	if got := gitUnixDir(noGit, t.TempDir()); got != "" {
+		t.Errorf("sans Git : %q", got)
+	}
+
+	sep := string(os.PathListSeparator)
+	path := "/a" + sep + "/b"
+	if got := withUnixTools(path, "/git/usr/bin"); got != path+sep+"/git/usr/bin" {
+		t.Errorf("ajout en dernier : %q", got)
+	}
+	if got := withUnixTools(path+sep+"/git/usr/bin", "/git/usr/bin"); got != path+sep+"/git/usr/bin" {
+		t.Errorf("pas de doublon : %q", got)
+	}
+}

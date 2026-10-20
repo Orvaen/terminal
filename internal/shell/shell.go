@@ -57,6 +57,7 @@ func New() *Shell {
 		return platform.RunSelfElevated("-c", "apt "+joinArgs(args))
 	}
 	s.installed = func() []string { return apt.InstalledNames(4 * time.Second) }
+	addUnixTools()
 	if restore, ok := platform.EnableRawInput(); ok {
 		restore()
 		s.edit = &editor{
