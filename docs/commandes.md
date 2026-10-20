@@ -126,7 +126,33 @@ Une ligne qui commence par une espace n'est pas gardée dans l'historique.
 
 Les guillemets simples et doubles protègent les espaces : `cp "mon fichier.txt" ~/docs`.
 
-## Tubes et redirections
+## Jokers et accolades
+
+Comme bash, le terminal développe lui-même les jokers avant de lancer la commande. Sous Windows, les programmes
+reçoivent sinon `*.log` tel quel et ne savent pas quoi en faire.
+
+| Motif | Correspond à | Exemple |
+|---|---|---|
+| `*` | n'importe quels caractères | `rm *.log` |
+| `?` | un seul caractère | `ls log?.txt` |
+| `[abc]`, `[a-z]` | un caractère de la liste ou de l'intervalle | `ls photo[1-3].jpg` |
+| `[!abc]` (ou `[^abc]`) | un caractère qui n'est pas dans la liste | `ls log[!0-9].txt` |
+| `**` | tous les sous-dossiers, à n'importe quelle profondeur | `ls src/**/*.ts` |
+| `{a,b,c}` | chacune des variantes | `cp app.{ts,js} dist/` |
+| `{1..5}`, `{01..10}`, `{a..e}`, `{0..100..10}` | une suite (avec zéros, lettres, pas) | `mkdir jour{1..7}` |
+
+Les règles sont celles de bash :
+
+- **Entre guillemets, rien n'est développé** : `find . -name "*.ts"` passe `*.ts` tel quel à `find`.
+- `*` et `**` ne prennent **pas les fichiers et dossiers cachés** (`.env`, `.git`), sauf si le motif commence par un
+  point : `ls .e*`.
+- **Un motif qui ne trouve rien reste tel quel** : `ls *.rien` affiche l'erreur de `ls` sur `*.rien`.
+- Les résultats sont triés ; sous Windows, la casse est ignorée (`readme.*` trouve `README.md`), comme dans
+  l'Explorateur.
+- Les chemins absolus marchent aussi : `C:\logs\*.txt`, `/c/Users/dev/*.md`.
+- Une redirection vers un motif qui désigne plusieurs fichiers (`> *.txt`) est refusée, comme dans bash.
+
+
 
 Le terminal relie lui-même les commandes, comme bash :
 

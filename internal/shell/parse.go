@@ -108,26 +108,68 @@ func splitChain(line string) ([]segment, error) {
 	return segs, nil
 }
 
+// word : un argument, avec pour chaque caractère s'il était entre guillemets (et donc protégé :
+// pas de joker ni d'accolades).
+type word struct {
+	r []rune
+	q []bool
+}
+
+func (w word) String() string { return string(w.r) }
+
+// hasUnquoted indique si l'un des caractères de set apparaît hors guillemets.
+func (w word) hasUnquoted(set string) bool {
+	for i, r := range w.r {
+		if !w.q[i] && strings.ContainsRune(set, r) {
+			return true
+		}
+	}
+	return false
+}
+
 // tokenize découpe une commande simple en arguments, retire les guillemets et développe ~.
 func tokenize(text, home string) ([]string, error) {
+	words, err := tokenizeWords(text, home)
+	if err != nil {
+		return nil, err
+	}
+	args := make([]string, len(words))
+	for i, w := range words {
+		args[i] = w.String()
+	}
+	return args, nil
+}
+
+// tokenizeWords découpe comme tokenize, en gardant la trace des parties entre guillemets.
+func tokenizeWords(text, home string) ([]word, error) {
 	var (
-		args    []string
-		b       strings.Builder
+		words   []word
+		cur     word
 		inToken bool
-		quoted  bool
 		quote   rune
 	)
 	push := func() {
 		if !inToken {
 			return
 		}
-		tok := b.String()
-		if !quoted {
-			tok = expandHome(tok, home)
+		// ~ ou ~/… hors guillemets : le dossier personnel
+		if home != "" && len(cur.r) > 0 && cur.r[0] == '~' && !cur.q[0] &&
+			(len(cur.r) == 1 || cur.r[1] == '/' || cur.r[1] == '\\') {
+			hr := []rune(home)
+			hq := make([]bool, len(hr))
+			for i := range hq {
+				hq[i] = true // le chemin du dossier perso n'est jamais un joker
+			}
+			cur = word{r: append(hr, cur.r[1:]...), q: append(hq, cur.q[1:]...)}
 		}
-		args = append(args, tok)
-		b.Reset()
-		inToken, quoted = false, false
+		words = append(words, cur)
+		cur = word{}
+		inToken = false
+	}
+	add := func(r rune, quoted bool) {
+		cur.r = append(cur.r, r)
+		cur.q = append(cur.q, quoted)
+		inToken = true
 	}
 
 	runes := []rune(text)
@@ -138,10 +180,10 @@ func tokenize(text, home string) ([]string, error) {
 			case r == quote:
 				quote = 0
 			case r == '\\' && quote == '"' && i+1 < len(runes) && runes[i+1] == '"':
-				b.WriteRune('"')
+				add('"', true)
 				i++
 			default:
-				b.WriteRune(r)
+				add(r, true)
 			}
 			continue
 		}
@@ -150,17 +192,16 @@ func tokenize(text, home string) ([]string, error) {
 			push()
 		case '\'', '"':
 			quote = r
-			inToken, quoted = true, true
-		default:
 			inToken = true
-			b.WriteRune(r)
+		default:
+			add(r, false)
 		}
 	}
 	if quote != 0 {
 		return nil, errUnclosedQuote
 	}
 	push()
-	return args, nil
+	return words, nil
 }
 
 func expandHome(tok, home string) string {

@@ -216,7 +216,7 @@ func (s *Shell) runSegment(seg segment) int {
 	if seg.special {
 		return s.runSpecial(seg.text)
 	}
-	args, err := tokenize(seg.text, homeDir())
+	args, err := expandLine(seg.text)
 	if err != nil {
 		s.errorf("terminal: %v", err)
 		return 2

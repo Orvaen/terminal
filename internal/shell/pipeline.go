@@ -77,9 +77,12 @@ func parsePipeline(line string) ([]stage, error) {
 		if q != 0 {
 			return "", i, errUnclosedQuote
 		}
-		toks, err := tokenize(string(runes[start:i]), homeDir())
+		toks, err := expandLine(string(runes[start:i]))
 		if err != nil {
 			return "", i, err
+		}
+		if len(toks) > 1 {
+			return "", i, errors.New("redirection ambiguë : le motif désigne plusieurs fichiers")
 		}
 		if len(toks) != 1 || toks[0] == "" {
 			return "", i, errors.New("erreur de syntaxe : fichier manquant après une redirection")
@@ -273,7 +276,7 @@ func (s *Shell) runSpecial(text string) int {
 	}
 	cmds := make([]resolved, len(stages))
 	for i, st := range stages {
-		args, err := tokenize(st.text, homeDir())
+		args, err := expandLine(st.text)
 		if err != nil {
 			s.errorf("terminal: %v", err)
 			return 2
