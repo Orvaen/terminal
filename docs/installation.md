@@ -64,13 +64,36 @@ terminal --setup-vscode
 
 ## Mettre à jour
 
-```powershell
-cd terminal
-git pull
-powershell -ExecutionPolicy Bypass -File .\build.ps1
+```text
+$ apt upgrade terminal
 ```
 
-Avec une release, télécharge la nouvelle version et relance `install.ps1`. Tes réglages et le Docker léger sont conservés.
+Pas besoin de recompiler ni de relancer l'installeur : la commande télécharge la dernière
+[release](https://github.com/Orvaen/terminal/releases), vérifie sa somme SHA-256 et remplace les exécutables.
+`apt upgrade` le fait aussi, après tes logiciels. Hors du terminal : `terminal --update`.
+
+| Ce qui tourne | Pendant la mise à jour |
+|---|---|
+| Fenêtres du terminal déjà ouvertes | Continuent avec l'ancienne version ; la nouvelle s'applique aux fenêtres ouvertes ensuite |
+| Docker léger, conteneurs, serveurs lancés depuis le terminal | Continuent sans interruption |
+| Réglages, historique, PATH, raccourcis | Conservés |
+
+Windows ne permet pas d'écraser un programme en cours d'exécution, mais il permet de le renommer : l'ancienne
+version devient `terminal.exe.<…>.old`, la nouvelle prend sa place, et les `.old` sont supprimés au lancement
+suivant. Si un téléchargement échoue ou si sa somme ne correspond pas, rien n'est modifié.
+
+Une fois par jour, le terminal vérifie en arrière-plan s'il existe une nouvelle version, et l'affiche à
+l'ouverture suivante :
+
+```text
+Mise à jour : r43 est disponible, tape apt upgrade terminal (ce qui tourne n'est pas interrompu).
+```
+
+`apt update` le signale aussi.
+
+> [!NOTE]
+> Une version compilée avec `build.ps1` (version `dev`) n'est jamais remplacée par `apt upgrade` sans le demander.
+> `apt upgrade terminal` la remplace par la dernière release.
 
 ## Désinstaller
 

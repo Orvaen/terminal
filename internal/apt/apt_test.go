@@ -11,6 +11,9 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 	t.Helper()
 	var calls [][]string
 	oldW, oldA, oldOut := winget, wingetAvailable, stdout
+	oldSU, oldSC := selfUpdate, selfCheck
+	selfUpdate = func(bool) int { calls = append(calls, []string{"self-update"}); return 0 }
+	selfCheck = func() (string, bool) { return "", false }
 	winget = func(args ...string) int {
 		calls = append(calls, args)
 		for _, a := range args {
@@ -22,7 +25,10 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 	}
 	wingetAvailable = func() bool { return true }
 	stdout = io.Discard
-	t.Cleanup(func() { winget, wingetAvailable, stdout = oldW, oldA, oldOut })
+	t.Cleanup(func() {
+		winget, wingetAvailable, stdout = oldW, oldA, oldOut
+		selfUpdate, selfCheck = oldSU, oldSC
+	})
 	return &calls
 }
 
@@ -153,5 +159,37 @@ func TestInstalledNamesFromWingetExport(t *testing.T) {
 	want := []string{"git", "node", "nodejs", "docker", "Git.Git", "OpenJS.NodeJS.LTS", "Spotify.Spotify"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("obtenu %q\nattendu %q", got, want)
+	}
+}
+
+func TestUpgradeTerminalUsesSelfUpdate(t *testing.T) {
+	calls := fakeWinget(t, nil)
+	if code := Run([]string{"upgrade", "terminal"}); code != 0 {
+		t.Fatalf("code %d", code)
+	}
+	if want := [][]string{{"self-update"}}; !reflect.DeepEqual(*calls, want) {
+		t.Fatalf("appels %v, attendu %v (winget ne doit pas être appelé)", *calls, want)
+	}
+}
+
+func TestUpgradeAllUpdatesReleaseBuildsOnly(t *testing.T) {
+	old := Version
+	t.Cleanup(func() { Version = old })
+
+	Version = "dev"
+	calls := fakeWinget(t, nil)
+	Run([]string{"upgrade"})
+	for _, c := range *calls {
+		if c[0] == "self-update" {
+			t.Fatal("une compilation locale ne doit pas être remplacée par apt upgrade")
+		}
+	}
+
+	Version = "r5"
+	calls = fakeWinget(t, nil)
+	Run([]string{"upgrade"})
+	last := (*calls)[len(*calls)-1]
+	if last[0] != "self-update" {
+		t.Fatalf("apt upgrade doit finir par la mise à jour du terminal, appels %v", *calls)
 	}
 }

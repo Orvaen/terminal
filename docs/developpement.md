@@ -28,6 +28,7 @@ internal/shell/     analyse des lignes, prompt, commandes intégrées
 internal/apt/       commandes apt, noms de paquets, winget, Windows Update
 internal/docker/    Docker léger : machine Alpine dans WSL2, moteur à la demande
 internal/req/       req : fichiers .http, requêtes, vérifications
+internal/update/    mise à jour du terminal depuis les releases GitHub (apt upgrade terminal)
 internal/setup/     profil du terminal intégré de VS Code (terminal --setup-vscode)
 internal/platform/  droits administrateur, élévation UAC, console Windows
 internal/ui/        affichage des messages (==>, W:, E:)
@@ -54,7 +55,14 @@ git push --tags
 ```
 
 La CI crée alors une release avec deux zips, `x64` et `arm64`, qui contiennent les exécutables, l'icône et
-`install.ps1`.
+`install.ps1`, plus `SHA256SUMS.txt`.
+
+Chaque push sur `main` publie aussi une release automatique, `r<numéro>` (le numéro du run de la CI) :
+c'est elle que `apt upgrade terminal` installe. La CI garde les 10 dernières releases `r<numéro>` et supprime
+les plus anciennes ; les versions `v*` ne sont jamais supprimées.
+
+Le code de la mise à jour est dans `internal/update/` : dernière release via l'API GitHub, vérification de la
+somme, puis remplacement des exécutables par renommage (`.old`), avec retour en arrière en cas d'erreur.
 
 ## Logo
 

@@ -24,11 +24,28 @@ jobs:
       - name: Tests
         run: go test ./...
 
-      - name: Compiler
+      # Version : le tag (v1.2.0), « r<numéro> » pour chaque push sur main, sinon dev-<commit>.
+      # Chaque release est installable avec « apt upgrade terminal ».
+      - name: Version
+        id: version
         shell: pwsh
         run: |
-          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "dev-$($env:GITHUB_SHA.Substring(0, 7))" }
-          $ldflags = "-s -w -X github.com/Orvaen/terminal/internal/apt.Version=$version"
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $version = $env:GITHUB_REF_NAME; $publish = 'true'
+          } elseif ($env:GITHUB_EVENT_NAME -eq 'push' -and $env:GITHUB_REF -eq 'refs/heads/main') {
+            $version = "r$($env:GITHUB_RUN_NUMBER)"; $publish = 'true'
+          } else {
+            $version = "dev-$($env:GITHUB_SHA.Substring(0, 7))"; $publish = 'false'
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "publish=$publish" >> $env:GITHUB_OUTPUT
+
+      - name: Compiler
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $ldflags = "-s -w -X github.com/Orvaen/terminal/internal/apt.Version=$env:VERSION"
           foreach ($arch in 'amd64', 'arm64') {
             $env:GOARCH = $arch
             New-Item -ItemType Directory -Force "dist/$arch" | Out-Null
@@ -41,16 +58,33 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: apt-windows
+          name: orvaen-terminal-${{ steps.version.outputs.version }}
           path: dist/
 
       - name: Publier la release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.version.outputs.publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $zips = @{ 'amd64' = "orvaen-terminal-$env:VERSION-x64.zip"; 'arm64' = "orvaen-terminal-$env:VERSION-arm64.zip" }
+          foreach ($arch in $zips.Keys) {
+            Compress-Archive -Path "dist/$arch/*" -DestinationPath $zips[$arch]
+          }
+          $sums = foreach ($zip in $zips.Values) { '{0}  {1}' -f (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower(), $zip }
+          [IO.File]::WriteAllText("$PWD/SHA256SUMS.txt", ($sums -join "`n") + "`n")
+          gh release create $env:VERSION @($zips.Values) SHA256SUMS.txt --target $env:GITHUB_SHA --title $env:VERSION --generate-notes --latest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # Garde les 10 dernières releases automatiques (r<numéro>) ; les versions v* ne sont jamais supprimées.
+      - name: Nettoyer les anciennes releases
+        if: steps.version.outputs.publish == 'true' && github.ref_type != 'tag'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = $env:GITHUB_REF_NAME
-          Compress-Archive -Path dist/amd64/* -DestinationPath "apt-windows-$tag-x64.zip"
-          Compress-Archive -Path dist/arm64/* -DestinationPath "apt-windows-$tag-arm64.zip"
-          gh release create $tag "apt-windows-$tag-x64.zip" "apt-windows-$tag-arm64.zip" --generate-notes
+          $auto = gh release list --limit 200 --json tagName --jq '.[].tagName' |
+            Where-Object { $_ -match '^r(\d+)$' } |
+            Sort-Object { [int]($_.Substring(1)) } -Descending
+          $auto | Select-Object -Skip 10 | ForEach-Object { gh release delete $_ --cleanup-tag --yes }

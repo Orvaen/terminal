@@ -11,8 +11,9 @@ et `apt.exe` permet de l'utiliser aussi depuis PowerShell ou cmd.
 | Commande | Ce que ça fait |
 |---|---|
 | `apt update` | Rafraîchit les sources et liste les mises à jour disponibles |
-| `apt upgrade` | Met à jour tous les logiciels (et le Docker léger s'il est installé) |
+| `apt upgrade` | Met à jour tous les logiciels (et le Docker léger s'il est installé), puis Orvaen Terminal |
 | `apt upgrade <paquet...>` | Met à jour seulement les logiciels indiqués |
+| `apt upgrade terminal` | Met à jour Orvaen Terminal, sans fermer ce qui tourne (voir [Installation › Mettre à jour](installation.md#mettre-à-jour)) |
 | `apt full-upgrade` | `upgrade`, puis les mises à jour Windows (alias `dist-upgrade`) |
 | `apt install <paquet...>` | Installe un ou plusieurs logiciels |
 | `apt remove <paquet...>` | Désinstalle (alias `purge`, `uninstall`) |

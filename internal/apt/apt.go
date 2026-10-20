@@ -6,10 +6,12 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/Orvaen/terminal/internal/docker"
 	"github.com/Orvaen/terminal/internal/platform"
 	"github.com/Orvaen/terminal/internal/ui"
+	"github.com/Orvaen/terminal/internal/update"
 )
 
 // Version est injectée à la compilation (-ldflags "-X ...apt.Version=v1.0.0").
@@ -29,6 +31,30 @@ var (
 	dockerUpgrade   = docker.Upgrade
 	dockerInstalled = func() bool { return docker.Installed() }
 )
+
+// Mise à jour d'Orvaen Terminal lui-même, depuis les releases GitHub. Remplacées dans les tests.
+var (
+	selfUpdate = func(force bool) int { return update.Run(Version, force) }
+	selfCheck  = func() (string, bool) { return update.Check(Version, 5*time.Second) }
+)
+
+// isSelf : noms qui désignent Orvaen Terminal dans « apt upgrade <nom> ».
+func isSelf(name string) bool {
+	switch strings.ToLower(name) {
+	case "terminal", "orvaen-terminal", "orvaen":
+		return true
+	}
+	return false
+}
+
+func onlySelf(pkgs []string) bool {
+	for _, p := range pkgs {
+		if !isSelf(p) {
+			return false
+		}
+	}
+	return len(pkgs) > 0
+}
 
 func isDocker(name string) bool {
 	switch strings.ToLower(name) {
@@ -60,6 +86,11 @@ func Run(args []string) int {
 	case "autoremove", "clean", "autoclean":
 		ui.Info("Rien à faire sous Windows : winget ne garde ni cache ni dépendances orphelines.")
 		return 0
+	}
+
+	// La mise à jour du terminal ne dépend pas de winget.
+	if inv.Command == "upgrade" && onlySelf(inv.Packages) {
+		return selfUpdate(false)
 	}
 
 	if !wingetAvailable() {
@@ -99,7 +130,18 @@ func cmdUpdate() int {
 	ui.Step("Logiciels pouvant être mis à jour")
 	code := winget("upgrade", acceptSource)
 	reportOfficial()
+	reportSelf()
 	return code
+}
+
+// reportSelf signale une nouvelle version d'Orvaen Terminal (sauf pour une compilation locale).
+func reportSelf() {
+	if update.IsDev(Version) {
+		return
+	}
+	if latest, ok := selfCheck(); ok {
+		ui.Info(fmt.Sprintf("Orvaen Terminal %s → %s : apt upgrade terminal", Version, latest))
+	}
 }
 
 func cmdUpgrade(pkgs []string) int {
@@ -119,11 +161,20 @@ func cmdUpgrade(pkgs []string) int {
 				code = dc
 			}
 		}
+		// Une compilation locale (build.ps1) n'est pas remplacée sans le demander : apt upgrade terminal.
+		if !update.IsDev(Version) {
+			if sc := selfUpdate(false); code == 0 {
+				code = sc
+			}
+		}
 		return code
 	}
 	return forEach(pkgs, "Mise à jour de", func(p string) int {
 		if isDocker(p) {
 			return dockerUpgrade()
+		}
+		if isSelf(p) {
+			return selfUpdate(false)
 		}
 		if isNode(p) {
 			if code, handled := upgradeNode(false); handled {
@@ -238,6 +289,7 @@ Usage : apt <commande> [paquets...] [-y]
 Commandes :
   update               Rafraîchit les sources et liste les mises à jour disponibles
   upgrade [paquet...]  Met à jour tous les logiciels (ou seulement ceux indiqués)
+  upgrade terminal     Met à jour Orvaen Terminal, sans fermer ce qui tourne
   full-upgrade         upgrade + mises à jour Windows (alias : dist-upgrade)
   install <paquet...>  Installe un ou plusieurs logiciels
   remove <paquet...>   Désinstalle (alias : purge, uninstall)

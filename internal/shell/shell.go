@@ -18,6 +18,7 @@ import (
 	"github.com/Orvaen/terminal/internal/apt"
 	"github.com/Orvaen/terminal/internal/platform"
 	"github.com/Orvaen/terminal/internal/ui"
+	"github.com/Orvaen/terminal/internal/update"
 )
 
 // AppName est le nom affiché dans le titre de la fenêtre et la bannière.
@@ -90,6 +91,11 @@ func (s *Shell) Interactive() int {
 		fmt.Fprint(s.out, "\x1b]0;"+AppName+"\x07")
 	}
 	fmt.Fprintf(s.out, "%s %s — tape %s pour voir les commandes.\n", AppName, apt.Version, s.paint("1", "help"))
+	if latest, ok := update.Available(apt.Version); ok {
+		fmt.Fprintf(s.out, "%s %s est disponible, tape %s (ce qui tourne n'est pas interrompu).\n",
+			s.paint("1;33", "Mise à jour :"), latest, s.paint("1", "apt upgrade terminal"))
+	}
+	update.RefreshInBackground(apt.Version)
 
 	// Ctrl+C interrompt la commande en cours, pas le shell.
 	sig := make(chan os.Signal, 1)
