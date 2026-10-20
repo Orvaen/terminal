@@ -198,6 +198,15 @@ Si Git pour Windows est installé (`apt install git`), le terminal ajoute ses ou
 Unix et les recettes des Makefile (`mkdir -p`, `[ … ]`, `$(shell id -u)`) fonctionnent. Les commandes Windows
 du même nom (`find`, `sort`) restent prioritaires.
 
+Le terminal règle aussi la variable `SHELL` sur ce `sh`, comme Git Bash. Sous Windows, GNU make s'en sert pour
+exécuter les recettes : même un ancien `make` qui passe en premier dans le PATH (celui de Free Pascal, par exemple)
+utilise alors `sh` au lieu de cmd.exe, qui ne comprend pas `{ … }` ni `[ … ]`. Si tu as déjà défini `SHELL`, il n'y
+touche pas.
+
+> [!TIP]
+> Un `make` ancien (3.x) abîme aussi les accents des Makefile en UTF-8 (`dÃ©marre`). `which make` montre lequel est
+> utilisé ; `apt install make` installe un GNU Make récent.
+
 Pour désactiver ce comportement : variable d'environnement `ORVAEN_NO_UNIX_TOOLS=1`.
 
 ## sudo

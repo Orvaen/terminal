@@ -9,6 +9,7 @@ package shell
 //
 // Le terminal ajoute donc Git\usr\bin à la fin de son PATH : ces outils comblent ce qui manque
 // sans masquer les commandes Windows du même nom (find, sort…), qui restent prioritaires.
+// Il règle aussi SHELL sur ce sh (voir setMakeShell).
 
 import (
 	"os"
@@ -65,5 +66,21 @@ func addUnixTools() {
 	dir := gitUnixDir(func() (string, error) { return exec.LookPath("git") }, os.Getenv("ProgramFiles"))
 	if dir != "" {
 		os.Setenv("PATH", withUnixTools(os.Getenv("PATH"), dir))
+		setMakeShell(dir)
+	}
+}
+
+// setMakeShell règle SHELL sur le sh de Git, comme Git Bash. Sous Windows, GNU make lit cette variable
+// d'environnement : il exécute alors les recettes avec sh quel que soit le make trouvé en premier
+// dans le PATH (un ancien make, celui de Free Pascal…), au lieu de se rabattre sur cmd.exe, qui ne
+// comprend ni { … }, ni [ … ], ni $(shell …).
+func setMakeShell(dir string) {
+	if os.Getenv("SHELL") != "" {
+		return // déjà choisi par l'utilisateur
+	}
+	sh := filepath.Join(dir, "sh.exe")
+	if _, err := os.Stat(sh); err == nil {
+		// Les barres obliques évitent qu'un make ancien interprète les \ du chemin.
+		os.Setenv("SHELL", filepath.ToSlash(sh))
 	}
 }

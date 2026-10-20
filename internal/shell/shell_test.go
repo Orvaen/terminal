@@ -250,3 +250,18 @@ func TestGitUnixTools(t *testing.T) {
 		t.Errorf("pas de doublon : %q", got)
 	}
 }
+
+func TestSetMakeShell(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "sh.exe"), nil, 0o755)
+	t.Setenv("SHELL", "")
+	setMakeShell(dir)
+	if got := os.Getenv("SHELL"); got != filepath.ToSlash(filepath.Join(dir, "sh.exe")) {
+		t.Fatalf("SHELL = %q", got)
+	}
+	t.Setenv("SHELL", "C:/mon/shell.exe")
+	setMakeShell(dir)
+	if os.Getenv("SHELL") != "C:/mon/shell.exe" {
+		t.Fatal("un SHELL choisi par l'utilisateur ne doit pas être remplacé")
+	}
+}
