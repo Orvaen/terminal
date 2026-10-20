@@ -1,3 +1,5 @@
 dist/
 *.exe
 *.zip
+docs/brand/__pycache__/
+docs/brand/.apercu-*.png

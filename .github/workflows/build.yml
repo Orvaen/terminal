@@ -36,7 +36,7 @@ jobs:
               go build -trimpath -ldflags $ldflags -o "dist/$arch/$name.exe" "./cmd/$name"
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             }
-            Copy-Item install.ps1 "dist/$arch/"
+            Copy-Item install.ps1, docs/brand/terminal.ico "dist/$arch/"
           }
 
       - uses: actions/upload-artifact@v4

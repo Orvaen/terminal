@@ -23,6 +23,16 @@ Copy-Item $aptSrc  (Join-Path $dest 'apt.exe') -Force
 Copy-Item $aptSrc  (Join-Path $dest 'apt-get.exe') -Force
 Copy-Item $termSrc $termExe -Force
 Copy-Item $dockerSrc (Join-Path $dest 'docker.exe') -Force
+
+# Icône (symbole Invite) : à côté du script dans une release, dans docs\brand depuis les sources
+$icon = $null
+foreach ($candidate in (Join-Path $PSScriptRoot 'terminal.ico'), (Join-Path $PSScriptRoot 'docs\brand\terminal.ico')) {
+    if (Test-Path $candidate) {
+        $icon = Join-Path $dest 'terminal.ico'
+        Copy-Item $candidate $icon -Force
+        break
+    }
+}
 Write-Host "Copié dans $dest"
 
 # Docker Desktop installé ? Son docker.exe passe avant le nôtre dans PowerShell et cmd
@@ -58,7 +68,8 @@ foreach ($folder in [Environment]::GetFolderPath('Programs'), [Environment]::Get
     $lnk = $wsh.CreateShortcut((Join-Path $folder "$AppName.lnk"))
     $lnk.TargetPath       = $termExe
     $lnk.WorkingDirectory = $env:USERPROFILE
-    $lnk.Description      = 'Terminal façon Linux avec apt et sudo'
+    $lnk.Description      = 'Terminal façon Linux avec apt et sudo, un logiciel Arkerion'
+    if ($icon) { $lnk.IconLocation = "$icon,0" }
     $lnk.Save()
 }
 Write-Host 'Raccourcis créés (menu Démarrer et Bureau)'
@@ -66,15 +77,13 @@ Write-Host 'Raccourcis créés (menu Démarrer et Bureau)'
 # 4. Profil Windows Terminal (fragment JSON, pris en compte au prochain lancement de Windows Terminal)
 $fragDir = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows Terminal\Fragments\OrvaenTerminal'
 New-Item -ItemType Directory -Force -Path $fragDir | Out-Null
-$fragment = @{
-    profiles = @(
-        @{
-            name              = $AppName
-            commandline       = $termExe
-            startingDirectory = '%USERPROFILE%'
-        }
-    )
-} | ConvertTo-Json -Depth 5
+$wtProfile = @{
+    name              = $AppName
+    commandline       = $termExe
+    startingDirectory = '%USERPROFILE%'
+}
+if ($icon) { $wtProfile.icon = $icon }
+$fragment = @{ profiles = @($wtProfile) } | ConvertTo-Json -Depth 5
 [IO.File]::WriteAllText((Join-Path $fragDir 'profile.json'), $fragment)
 Write-Host 'Profil ajouté à Windows Terminal'
 
