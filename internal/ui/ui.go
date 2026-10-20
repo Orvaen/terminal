@@ -39,3 +39,6 @@ func Warn(msg string) {
 func Errorf(format string, a ...any) {
 	fmt.Fprintln(os.Stderr, paint("1;31", "E:")+" "+fmt.Sprintf(format, a...))
 }
+
+// Color colore un texte (code ANSI, par exemple "32" pour vert) quand la console le permet.
+func Color(code, s string) string { return paint(code, s) }

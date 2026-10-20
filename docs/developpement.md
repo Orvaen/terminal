@@ -26,6 +26,7 @@ cmd/docker/         la commande docker seule : docker.exe
 cmd/req/            la commande req seule : req.exe
 internal/shell/     analyse des lignes, prompt, commandes intégrées
 internal/apt/       commandes apt, noms de paquets, winget, Windows Update
+internal/deps/      apt deps : outils et versions demandés par un projet
 internal/docker/    Docker léger : machine Alpine dans WSL2, moteur à la demande
 internal/req/       req : fichiers .http, requêtes, vérifications
 internal/scripts/   run : scripts de terminal.json, en séquence ou en parallèle

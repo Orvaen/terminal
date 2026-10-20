@@ -21,7 +21,8 @@ $ sudo apt full-upgrade
 
 - **Commandes Linux** : `ls`, `cd`, `cat`, `rm`, `cp`, `mv`, `mkdir -p`, enchaînements `&&` et `||`, vrais tubes et redirections (`|`, `>`, `2>&1`), complétion avec Tab.
 - **Coreutils de Microsoft** : `apt install coreutils` ajoute `grep`, `head`, `sort`, `find`, `xargs`… (78 commandes Unix natives), branchées sur le terminal.
-- **apt** : installe et met à jour tes logiciels via winget, et Windows via Windows Update.
+- **apt** : installe et met à jour tes logiciels via winget, et Windows via Windows Update. Comprend les noms Linux (`code`, `fd-find`…).
+- **apt deps** : détecte les outils dont un projet a besoin (Node, Go, Python, Docker, make…) et les installe, avec les dépendances du projet.
 - **sudo** : lance une commande en administrateur.
 - **Docker léger** : le vrai Docker Engine sans Docker Desktop, qui s'éteint tout seul quand il ne sert pas.
 - **Mise à jour à chaud** : `apt upgrade terminal`, sans réinstaller ni fermer ce qui tourne.

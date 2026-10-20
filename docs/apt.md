@@ -22,11 +22,71 @@ et `apt.exe` permet de l'utiliser aussi depuis PowerShell ou cmd.
 | `apt list` | Liste les logiciels installés |
 | `apt list --upgradable` | Liste ceux qui ont une mise à jour |
 | `apt windows-update` | Installe uniquement les mises à jour Windows (administrateur) |
+| `apt deps` | Outils dont le projet a besoin, et ce qui manque, voir [plus bas](#les-outils-dun-projet--apt-deps) |
+| `apt deps install` | Installe ce qui manque, puis les dépendances du projet (alias `apt build-dep`) |
 | `apt alias [nom identifiant]` | Tes noms de paquets, voir [plus bas](#tes-noms--apt-alias) |
 | `apt help`, `apt version` | Aide, version |
 
 `apt-get` est un synonyme d'`apt`. L'option `-y` est acceptée : les accords de licence sont acceptés automatiquement.
 `autoremove` et `clean` existent mais n'ont rien à faire sous Windows.
+
+## Les outils d'un projet : apt deps
+
+Dans un projet que tu viens de cloner, `apt deps` lit ses fichiers et liste les outils nécessaires, avec la
+version demandée et celle que tu as :
+
+```text
+$ apt deps
+Projet : C:\Users\dev\Desktop\j1-express
+
+  ✓ Git                2.47.1
+                       .git, Makefile (sh des recettes)
+  ✓ Docker             Docker léger
+                       Makefile, docker-compose.yml
+  ✗ make               manquant → apt install make
+                       Makefile
+  ! Node.js            18.20.4, trop ancien (≥ 22 voulu par api/.nvmrc)
+                       api/package.json, api/.nvmrc
+  ✗ Hurl               manquant → apt install hurl
+                       tests/*.hurl
+
+Dépendances du projet :
+  api : npm ci
+
+Pour installer ce qui manque (3 outil(s)) : apt deps install
+```
+
+`apt deps install` (ou `apt build-dep`, comme sous Debian) installe les outils manquants ou trop anciens, les rend
+utilisables tout de suite (sans rouvrir le terminal), puis propose d'installer les dépendances du projet
+(`npm ci`, `go mod download`…). Avec `-y`, il ne pose pas de question. `apt deps <dossier>` analyse un autre dossier.
+
+Le projet et ses sous-dossiers sont parcourus sur 3 niveaux (`api/`, `web/`, `services/x/`…), sans entrer dans
+`node_modules`, `vendor`, `target`, `.venv` et les dossiers cachés.
+
+| Fichier | Outils | Version lue dans | Dépendances du projet |
+|---|---|---|---|
+| `package.json` | Node.js ; pnpm, Yarn ou Bun selon le fichier de verrouillage ou `packageManager` | `engines.node`, `volta.node`, `.nvmrc`, `.node-version` | `npm ci`, `pnpm install`, `yarn install`, `bun install` |
+| `deno.json` | Deno | | |
+| `go.mod` | Go | la ligne `go 1.23` | `go mod download` |
+| `Cargo.toml`, `rust-toolchain.toml` | Rust | `rust-version`, `channel` | `cargo fetch` |
+| `pyproject.toml`, `requirements.txt`, `setup.py`, `Pipfile` | Python ; uv ou Poetry s'ils sont utilisés | `requires-python`, `.python-version`, `runtime.txt` | `uv sync`, `poetry install`, ou un `.venv` avec `pip install -r requirements.txt` |
+| `pom.xml`, `build.gradle` | Java (JDK) ; Maven ou Gradle sans wrapper (`mvnw`, `gradlew`) | `maven.compiler.release`, `java.version`, `JavaLanguageVersion.of(…)` | |
+| `*.csproj`, `*.sln`, `global.json` | .NET SDK | `sdk.version` de `global.json` | `dotnet restore` |
+| `composer.json` | PHP, Composer | `require.php` | `composer install` |
+| `Gemfile`, `.ruby-version` | Ruby | `.ruby-version` | `bundle install` |
+| `Makefile` | make, et Git (son `sh` exécute les recettes) ; Docker si les recettes l'utilisent | | |
+| `Dockerfile`, `compose.yaml`, `docker-compose.yml` | Docker (le [Docker léger](docker.md)) | | |
+| `CMakeLists.txt` | CMake, un compilateur C/C++ | | |
+| `*.tf`, `Chart.yaml`, `*.hurl` | Terraform, Helm, Hurl | | |
+| `mix.exs`, `pubspec.yaml`, `Package.swift`, `build.sbt`, `stack.yaml`, `cpanfile` | Elixir, Dart, Swift, sbt, Stack, Perl | | |
+| `.tool-versions`, `mise.toml` | les outils listés | leurs versions | |
+
+Une version demandée est un **minimum** : `.nvmrc` à `22` est satisfait par Node 24. Si plusieurs fichiers
+demandent une version, la plus exigeante l'emporte. Pour Java et .NET, la version choisit le paquet :
+`maven.compiler.release` à 17 installe le JDK 17, `global.json` en 8.0 installe le SDK .NET 8.
+
+Composer, Maven, Gradle, Poetry et les compilateurs C/C++ ne s'installent pas avec winget : `apt deps` indique
+comment les obtenir.
 
 ## Noms de paquets
 
