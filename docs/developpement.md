@@ -28,6 +28,7 @@ internal/shell/     analyse des lignes, prompt, commandes intégrées
 internal/apt/       commandes apt, noms de paquets, winget, Windows Update
 internal/docker/    Docker léger : machine Alpine dans WSL2, moteur à la demande
 internal/req/       req : fichiers .http, requêtes, vérifications
+internal/setup/     profil du terminal intégré de VS Code (terminal --setup-vscode)
 internal/platform/  droits administrateur, élévation UAC, console Windows
 internal/ui/        affichage des messages (==>, W:, E:)
 docs/               documentation

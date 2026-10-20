@@ -3,6 +3,7 @@
 //
 //	terminal              session interactive
 //	terminal -c "ligne"   exécute une ligne puis quitte
+//	terminal --setup-vscode  ajoute le profil au terminal intégré de VS Code
 package main
 
 import (
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/Orvaen/terminal/internal/apt"
+	"github.com/Orvaen/terminal/internal/setup"
 	"github.com/Orvaen/terminal/internal/shell"
 )
 
@@ -37,6 +39,13 @@ func main() {
 			}
 			line, hasLine = strings.Join(rest, " "), true
 			i = len(args)
+		case "--setup-vscode":
+			exe, err := os.Executable()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			os.Exit(setup.VSCode(exe, os.Stdout))
 		case "--version", "-v":
 			fmt.Printf("%s %s\n", shell.AppName, apt.Version)
 			return

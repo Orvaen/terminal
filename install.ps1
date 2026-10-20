@@ -1,7 +1,7 @@
 ﻿# Installe Orvaen Terminal (terminal.exe), apt.exe, docker.exe et req.exe pour l'utilisateur courant :
 #  - copie dans %LOCALAPPDATA%\Programs\apt-windows et ajout au PATH
 #  - raccourcis dans le menu Démarrer et sur le Bureau
-#  - profil dans Windows Terminal
+#  - profil dans Windows Terminal et dans le terminal intégré de VS Code
 # Usage : place install.ps1 à côté des .exe, puis  powershell -ExecutionPolicy Bypass -File .\install.ps1
 $ErrorActionPreference = 'Stop'
 $AppName = 'Orvaen Terminal'
@@ -88,6 +88,9 @@ if ($icon) { $wtProfile.icon = $icon }
 $fragment = @{ profiles = @($wtProfile) } | ConvertTo-Json -Depth 5
 [IO.File]::WriteAllText((Join-Path $fragDir 'profile.json'), $fragment)
 Write-Host 'Profil ajouté à Windows Terminal'
+
+# 5. Profil dans le terminal intégré de VS Code (et masquage de la machine Docker interne)
+& $termExe --setup-vscode
 
 Write-Host ''
 Write-Host "C'est installé ! Lancement de $AppName..."

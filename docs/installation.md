@@ -36,6 +36,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 | PATH | Ajoute ce dossier à ton PATH utilisateur, pour utiliser `apt` et `docker` depuis PowerShell, cmd ou VS Code |
 | Raccourcis | **Orvaen Terminal** dans le menu Démarrer et sur le Bureau |
 | Windows Terminal | Ajoute un profil **Orvaen Terminal** (menu ⌄ des onglets) |
+| VS Code | Ajoute **Orvaen Terminal** aux profils du terminal intégré, et masque `orvaen-docker (WSL)`, la machine interne du Docker léger |
 | Lancement | Ouvre le terminal |
 
 L'installation se fait pour ton compte uniquement : aucun droit administrateur n'est demandé.
@@ -47,6 +48,19 @@ L'installation se fait pour ton compte uniquement : aucun droit administrateur n
 > [!TIP]
 > Si tu avais ajouté l'ancien script `apt-windows.ps1` à ton profil PowerShell, retire la ligne correspondante
 > de `$PROFILE` : une fonction PowerShell `apt` passerait avant `apt.exe`.
+
+## Dans VS Code
+
+Dans le terminal intégré, ouvre le menu **⌄** à côté du **+** : **Orvaen Terminal** y apparaît.
+Pour l'ouvrir par défaut : *Terminal: Select Default Profile* dans la palette de commandes (Ctrl+Maj+P),
+puis **Orvaen Terminal**.
+
+L'installeur modifie ton `settings.json` (une copie est gardée dans `settings.json.bak`). S'il contient des
+commentaires, il n'y touche pas et affiche les lignes à ajouter toi-même. Pour refaire cette étape seule :
+
+```powershell
+terminal --setup-vscode
+```
 
 ## Mettre à jour
 
