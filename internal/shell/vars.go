@@ -96,6 +96,7 @@ func (s *Shell) initEnv() {
 	if s.color {
 		setDefault("COLORTERM", "truecolor")
 	}
+	_, langFromWindows = os.LookupEnv("LANG")
 	setDefault("LANG", platform.Locale()+".UTF-8")
 	if _, ok := os.LookupEnv("TERM_PROGRAM"); !ok {
 		os.Setenv("TERM_PROGRAM", "OrvaenTerminal")

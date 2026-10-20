@@ -132,6 +132,22 @@ var (
 	procLCIDToLocaleName         = kernel32.NewProc("LCIDToLocaleName")
 )
 
+// LocaleDetails : la langue d'affichage et le format régional, tels que Windows les donne (« fr-FR »).
+func LocaleDetails() (ui, format string) {
+	buf := make([]uint16, 85)
+	if lang, _, _ := procGetUserDefaultUILanguage.Call(); lang != 0 {
+		if r, _, _ := procLCIDToLocaleName.Call(lang, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)), 0); r != 0 {
+			ui = syscall.UTF16ToString(buf)
+		} else {
+			ui = fmt.Sprintf("LCID 0x%04x", lang)
+		}
+	}
+	if r, _, _ := procGetUserDefaultLocaleName.Call(uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf))); r != 0 {
+		format = syscall.UTF16ToString(buf)
+	}
+	return ui, format
+}
+
 // Locale : la langue d'affichage de Windows au format de LANG (« fr-FR » → « fr_FR »), « C » si inconnue.
 // La langue d'affichage (celle des menus) passe avant le format régional (dates, nombres), qui peut
 // être réglé sur un autre pays : c'est elle que LANG désigne pour les messages des programmes.

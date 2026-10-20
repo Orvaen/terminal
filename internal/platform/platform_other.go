@@ -89,3 +89,6 @@ func Locale() string {
 	}
 	return "C"
 }
+
+// LocaleDetails : hors Windows, LANG pour les deux.
+func LocaleDetails() (ui, format string) { return Locale(), Locale() }

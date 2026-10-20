@@ -35,7 +35,7 @@ var builtins map[string]builtin
 var builtinOrder = []string{
 	"apt", "sudo", "docker", "req", "run",
 	"ls", "cd", "pwd", "cat", "touch", "mkdir", "rm", "rmdir", "cp", "mv",
-	"echo", "clear", "which", "export", "unset", "set", "env", "printenv", "path", "open", "prompt", "help", "exit",
+	"echo", "clear", "which", "export", "unset", "set", "env", "printenv", "path", "open", "prompt", "diag", "help", "exit",
 }
 
 func init() {
@@ -62,6 +62,7 @@ func init() {
 		"unset":    {runUnset, "unset NOM...", "Supprime une variable"},
 		"env":      {runEnv, "env", "Liste les variables d'environnement"},
 		"printenv": {runPrintenv, "printenv [NOM...]", "Affiche des variables d'environnement"},
+		"diag":     {runDiag, "diag [touches]", "Diagnostic : fenêtre, langue, touches reçues"},
 		"set":      {runSet, "set", "Liste toutes les variables (terminal, environnement, $RANDOM…)"},
 		"open":     {runOpen, "open [chemin]", "Ouvre un dossier ou fichier dans l'Explorateur"},
 		"path":     {runPath, "path [qui|monter|masquer|nettoyer]", "Voit et range le PATH (quel make, quel python gagne…)"},
