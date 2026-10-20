@@ -1,0 +1,52 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Vérifier
+        run: |
+          go vet ./...
+          go test ./...
+
+      - name: Compiler
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "dev-$($env:GITHUB_SHA.Substring(0, 7))" }
+          $ldflags = "-s -w -X github.com/Orvaen/terminal/internal/apt.Version=$version"
+          foreach ($arch in 'amd64', 'arm64') {
+            $env:GOARCH = $arch
+            New-Item -ItemType Directory -Force "dist/$arch" | Out-Null
+            go build -trimpath -ldflags $ldflags -o "dist/$arch/apt.exe" ./cmd/apt
+            Copy-Item install.ps1 "dist/$arch/"
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apt-windows
+          path: dist/
+
+      - name: Publier la release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          Compress-Archive -Path dist/amd64/* -DestinationPath "apt-windows-$tag-x64.zip"
+          Compress-Archive -Path dist/arm64/* -DestinationPath "apt-windows-$tag-arm64.zip"
+          gh release create $tag "apt-windows-$tag-x64.zip" "apt-windows-$tag-arm64.zip" --generate-notes
