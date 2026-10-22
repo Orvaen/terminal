@@ -1,6 +1,8 @@
 package docker
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -87,5 +89,39 @@ func TestWSLConfMetadata(t *testing.T) {
 	}
 	if !strings.HasSuffix(writeWSLConfScript, "\nORVAEN_EOF\n") {
 		t.Fatal("le heredoc de wsl.conf doit être fermé")
+	}
+}
+
+func TestSetupInstallsBuildKit(t *testing.T) {
+	if !strings.Contains(setupScript, "docker-cli-buildx") {
+		t.Fatal("l'installation doit ajouter BuildKit (docker-cli-buildx)")
+	}
+	if !strings.Contains(prepareScript, buildxPlugin) || !strings.Contains(prepareScript, writeWSLConfScript) {
+		t.Fatal("la préparation doit ajouter BuildKit et mettre wsl.conf à jour")
+	}
+}
+
+func TestBuildHint(t *testing.T) {
+	dir := t.TempDir()
+	if buildHint([]string{"build", "."}, dir) != "" {
+		t.Fatal("pas de conseil sans gros dossier")
+	}
+	if err := os.Mkdir(filepath.Join(dir, "node_modules"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buildHint([]string{"build", "."}, dir), "node_modules") {
+		t.Fatal("conseil attendu pour node_modules sans .dockerignore")
+	}
+	if !strings.Contains(buildHint([]string{"buildx", "build", "."}, dir), "node_modules") {
+		t.Fatal("conseil attendu aussi pour docker buildx build")
+	}
+	if buildHint([]string{"run", "nginx"}, dir) != "" {
+		t.Fatal("pas de conseil hors build")
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".dockerignore"), []byte("node_modules\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if buildHint([]string{"build", "."}, dir) != "" {
+		t.Fatal("pas de conseil avec un .dockerignore")
 	}
 }

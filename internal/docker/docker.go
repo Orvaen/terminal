@@ -14,7 +14,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Orvaen/terminal/internal/platform"
 	"github.com/Orvaen/terminal/internal/ui"
@@ -108,43 +107,31 @@ func hasDistro(list, name string) bool {
 
 func engineRunning() bool { return wslQuiet(inDistro("sh", "-c", runningCheck)...) == 0 }
 
-func engineReady() bool { return wslQuiet(inDistro("docker", "info")...) == 0 }
-
 // ensureRunning démarre le moteur s'il est arrêté et attend qu'il réponde.
 func ensureRunning() int {
 	if engineRunning() {
 		return 0
 	}
-	ensureWSLConf()
+	return startEngine()
+}
+
+// startEngine démarre le moteur (supposé arrêté) et attend qu'il réponde.
+// Trois lancements de wsl.exe en tout : préparation, moteur, attente.
+func startEngine() int {
 	ui.Info("Démarrage du moteur Docker…")
+	// Préparation : BuildKit et wsl.conf. Le moteur est arrêté : aucun conteneur n'est interrompu.
+	if wsl(inDistro("sh", "-c", prepareScript)...) == prepareRestart {
+		wslQuiet("--terminate", Distro)
+	}
 	if err := startDetached("wsl.exe", inDistro("/usr/local/bin/orvaen-dockerd"), wslEnv()); err != nil {
 		ui.Errorf("impossible de démarrer le moteur Docker : %v", err)
 		return 1
 	}
-	deadline := time.Now().Add(60 * time.Second)
-	for time.Now().Before(deadline) {
-		if engineReady() {
-			return 0
-		}
-		time.Sleep(700 * time.Millisecond)
+	if wslQuiet(inDistro("sh", "-c", waitReadyScript)...) == 0 {
+		return 0
 	}
 	ui.Errorf("le moteur Docker ne répond pas. Consulte le journal : docker engine logs")
 	return 1
-}
-
-// ensureWSLConf met à jour /etc/wsl.conf dans les machines créées avant l'option metadata,
-// puis arrête la machine pour que le nouveau montage de /mnt/c soit pris en compte au démarrage.
-// Appelée seulement quand le moteur est arrêté : aucun conteneur n'est interrompu.
-func ensureWSLConf() {
-	if wslQuiet(inDistro("sh", "-c", wslConfCheck)...) == 0 {
-		return
-	}
-	ui.Info("Mise à jour de la machine Docker : droits des fichiers Windows dans les conteneurs…")
-	if wslQuiet(inDistro("sh", "-c", writeWSLConfScript)...) != 0 {
-		ui.Warn("impossible de mettre à jour /etc/wsl.conf dans la machine Docker.")
-		return
-	}
-	wslQuiet("--terminate", Distro)
 }
 
 // ---------------------------------------------------------------------------
@@ -166,13 +153,16 @@ func Run(args []string) int {
 	wargs := []string{"-d", Distro, "-u", "root"}
 	if cwd, err := os.Getwd(); err == nil {
 		wargs = append(wargs, "--cd", cwd)
+		if hint := buildHint(args, cwd); hint != "" {
+			ui.Warn(hint)
+		}
 	}
 	wargs = append(append(wargs, "--exec", "sh", "-c", cliWrapper, "docker"), convertArgs(args)...)
 	// Un seul lancement de wsl.exe quand le moteur tourne déjà : le script vérifie lui-même que
 	// dockerd est prêt, et rend le code engineStopped sinon (rien n'a alors été lancé).
 	code := wsl(wargs...)
 	if code == engineStopped && !engineRunning() {
-		if code := ensureRunning(); code != 0 {
+		if code := startEngine(); code != 0 {
 			return code
 		}
 		code = wsl(wargs...)
@@ -189,6 +179,27 @@ func installedFast() bool {
 		return true
 	}
 	return Installed()
+}
+
+// buildHint : pour « docker build » lancé dans un dossier sans .dockerignore mais avec un gros dossier
+// (node_modules, .git…), un conseil. Le contexte de build est lu depuis Windows à travers /mnt/c,
+// ce qui est lent pour des milliers de petits fichiers.
+func buildHint(args []string, dir string) string {
+	isBuild := len(args) > 0 && args[0] == "build" ||
+		len(args) > 1 && (args[0] == "buildx" || args[0] == "image") && args[1] == "build"
+	if !isBuild {
+		return ""
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".dockerignore")); err == nil {
+		return ""
+	}
+	for _, heavy := range []string{"node_modules", ".git", "vendor", "target", ".venv", "dist"} {
+		if info, err := os.Stat(filepath.Join(dir, heavy)); err == nil && info.IsDir() {
+			return "pas de .dockerignore : " + heavy + " est envoyé au build à chaque fois, ce qui est lent depuis Windows. " +
+				"Crée un fichier .dockerignore qui contient « " + heavy + " »."
+		}
+	}
+	return ""
 }
 
 var drivePath = regexp.MustCompile(`(^|[=,])([A-Za-z]):[\\/]`)
@@ -369,7 +380,7 @@ func Upgrade() int {
 		return 1
 	}
 	ui.Step("Mise à jour de Docker Engine")
-	code := wsl(inDistro("apk", "upgrade", "--no-cache")...)
+	code := wsl(inDistro("sh", "-c", "apk add --no-cache -q docker-cli-buildx && apk upgrade --no-cache")...)
 	if code == 0 && engineRunning() {
 		ui.Info("Pour utiliser la nouvelle version tout de suite : docker engine stop")
 	}

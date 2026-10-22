@@ -67,11 +67,46 @@ const setupScript = `set -e
 if ! grep -q '/community' /etc/apk/repositories; then
   sed -n 's#/main$#/community#p' /etc/apk/repositories >> /etc/apk/repositories
 fi
-apk add --no-cache docker docker-cli-compose
+apk add --no-cache docker docker-cli-compose docker-cli-buildx
 cat > /usr/local/bin/orvaen-dockerd <<'ORVAEN_EOF'
 ` + engineScript + `ORVAEN_EOF
 chmod +x /usr/local/bin/orvaen-dockerd
 ` + writeWSLConfScript
+
+// buildxPlugin : le plugin BuildKit de la CLI docker. Sans lui, « docker build » retombe sur l'ancien
+// constructeur (obsolète) : contexte envoyé en entier à chaque build, étapes en série, cache moins efficace.
+const buildxPlugin = "/usr/libexec/docker/cli-plugins/docker-buildx"
+
+// prepareScript tourne juste avant le démarrage du moteur, en un seul lancement de wsl.exe :
+// il ajoute BuildKit aux machines installées sans lui et met /etc/wsl.conf à jour.
+// Code prepareRestart : wsl.conf vient d'être réécrit, la machine doit redémarrer pour l'appliquer.
+const prepareScript = `restart=0
+if ! ` + wslConfCheck + `; then
+  echo "Mise à jour de la machine Docker : droits des fichiers Windows dans les conteneurs…" >&2
+  ` + writeWSLConfScript + `  restart=1
+fi
+if [ ! -x ` + buildxPlugin + ` ]; then
+  echo "Ajout de BuildKit (docker buildx) pour des builds plus rapides, une seule fois…" >&2
+  apk add --no-cache -q docker-cli-buildx >/dev/null 2>&1 || echo "avertissement : BuildKit n'a pas pu être installé (réseau ?)." >&2
+fi
+[ "$restart" = 1 ] && exit 10
+exit 0
+`
+
+// prepareRestart : code rendu par prepareScript quand la machine doit redémarrer.
+const prepareRestart = 10
+
+// waitReadyScript attend dans la machine que dockerd réponde (un seul wsl.exe au lieu d'un par essai).
+// Échoue après 60 s, ou après 10 s si dockerd n'a même pas démarré.
+const waitReadyScript = `i=0
+while [ $i -lt 300 ]; do
+  if test -S /var/run/docker.sock && docker version >/dev/null 2>&1; then exit 0; fi
+  if [ $i -ge 50 ] && ! pgrep -x dockerd >/dev/null; then exit 1; fi
+  sleep 0.2
+  i=$((i+1))
+done
+exit 1
+`
 
 // runningCheck : dockerd tourne et son socket est prêt.
 const runningCheck = `pgrep -x dockerd >/dev/null && test -S /var/run/docker.sock`

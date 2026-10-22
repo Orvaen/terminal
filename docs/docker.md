@@ -20,7 +20,7 @@ seulement l'essentiel :
 
 1. **WSL2**, le Linux intégré à Windows, activé si besoin ;
 2. une mini machine **Alpine Linux** de quelques Mo, nommée `orvaen-docker`, séparée de tes autres distributions ;
-3. **Docker Engine** et **Docker Compose**, installés depuis les dépôts officiels d'Alpine.
+3. **Docker Engine**, **Docker Compose** et **BuildKit** (`docker buildx`), installés depuis les dépôts officiels d'Alpine.
 
 La commande `docker` (intégrée au terminal, et `docker.exe` pour PowerShell, cmd ou VS Code) transmet tes commandes
 à ce moteur.
@@ -50,7 +50,24 @@ Pour changer le délai, définis la variable d'environnement `ORVAEN_DOCKER_IDLE
 l'arrêt automatique), puis redémarre le moteur avec `docker engine stop`. `apt optimiser` propose de le passer à 1 h.
 
 Quand le moteur tourne, une commande `docker` ne lance qu'un seul `wsl.exe` : le script de la machine vérifie
-lui-même que le moteur est prêt (avant, trois lancements : liste des machines, état du moteur, puis la commande).
+lui-même que le moteur est prêt. Au démarrage à froid, l'attente du moteur se fait aussi dans la machine, en un seul
+`wsl.exe`, au lieu d'un nouveau lancement toutes les 0,7 s.
+
+### Builds rapides avec BuildKit
+
+`docker build` utilise **BuildKit** : étapes en parallèle, cache réutilisé d'un build à l'autre, et seuls les fichiers
+modifiés du dossier sont renvoyés au moteur. Sans lui, Docker retombe sur l'ancien constructeur, qui renvoie tout le
+dossier à chaque build depuis Windows : c'est ce qui rendait les builds très lents. Une machine installée avant
+BuildKit le reçoit toute seule au prochain démarrage du moteur (`docker engine stop`, puis relance ta commande).
+
+Le dossier du build est lu depuis Windows à travers `/mnt/c`. Ajoute un fichier `.dockerignore` pour ne pas envoyer
+les gros dossiers inutiles : le terminal te prévient s'il voit un `node_modules`, `.git`, `vendor`… sans `.dockerignore`.
+
+```text
+node_modules
+.git
+dist
+```
 
 ### Projets lents dans un conteneur
 
@@ -105,6 +122,7 @@ volumes:
 | `Docker n'est pas installé` | Lance `apt install docker` |
 | L'installation s'arrête après l'activation de WSL2 | C'est normal : redémarre le PC, puis relance `apt install docker` |
 | `EPERM: operation not permitted, chmod` dans un conteneur | Machine encore sur l'ancien montage : `docker engine stop`, puis relance ta commande |
+| `docker build` très lent | `docker engine stop`, puis relance le build pour installer BuildKit ; ajoute un `.dockerignore` |
 | `le moteur Docker ne répond pas` | Regarde `docker engine logs`, puis essaie `docker engine stop` et relance ta commande |
 | Tout recommencer | `apt remove docker -y`, puis `apt install docker` |
 
