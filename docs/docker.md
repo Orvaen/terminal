@@ -53,15 +53,32 @@ Quand le moteur tourne, une commande `docker` ne lance qu'un seul `wsl.exe` : le
 lui-même que le moteur est prêt. Au démarrage à froid, l'attente du moteur se fait aussi dans la machine, en un seul
 `wsl.exe`, au lieu d'un nouveau lancement toutes les 0,7 s.
 
-### Builds rapides avec BuildKit
+### Builds rapides : sans passer par le partage de fichiers
 
-`docker build` utilise **BuildKit** : étapes en parallèle, cache réutilisé d'un build à l'autre, et seuls les fichiers
-modifiés du dossier sont renvoyés au moteur. Sans lui, Docker retombe sur l'ancien constructeur, qui renvoie tout le
-dossier à chaque build depuis Windows : c'est ce qui rendait les builds très lents. Une machine installée avant
-BuildKit le reçoit toute seule au prochain démarrage du moteur (`docker engine stop`, puis relance ta commande).
+Dans la machine Linux, ton dossier Windows est lu à travers `/mnt/c`, le partage de fichiers de WSL. Il est très lent
+pour des milliers de petits fichiers, et c'est lui qui rendait les builds longs. Comme Docker Desktop, les builds
+sont donc lancés par le **client docker officiel pour Windows** : il lit ton dossier directement sur le disque et
+l'envoie au moteur en un seul flux.
 
-Le dossier du build est lu depuis Windows à travers `/mnt/c`. Ajoute un fichier `.dockerignore` pour ne pas envoyer
-les gros dossiers inutiles : le terminal te prévient s'il voit un `node_modules`, `.git`, `vendor`… sans `.dockerignore`.
+| Commande | Passe par |
+|---|---|
+| `docker build`, `docker buildx build`, `docker image build` | Client Windows |
+| `docker compose build` | Client Windows |
+| `docker compose up --build` (et `run`, `create`) | Build par le client Windows, puis `up` sans `--build` par WSL |
+| Tout le reste (`run`, `ps`, `compose up`…) | WSL, comme avant |
+
+- Le client (`docker.exe`, avec les plugins **BuildKit** et **Compose**) est téléchargé une fois dans
+  `%LOCALAPPDATA%\OrvaenTerminal\docker-client`, depuis `download.docker.com` et les releases GitHub de Docker
+  (sommes SHA-256 vérifiées pour les plugins). Il est mis à jour par `apt upgrade docker`.
+- Il parle au moteur sur `localhost:23760`, en **TLS avec certificat client** : seul ton compte Windows a les clés,
+  les autres comptes du PC ne peuvent pas utiliser le moteur.
+- Tes identifiants `docker login` sont repris pour les builds (images de base privées).
+- Une machine déjà installée reçoit tout ça au prochain démarrage du moteur : `docker engine stop`, puis relance ton build.
+- Si quelque chose bloque (port, relais localhost de WSL désactivé…), le build repasse tout seul par WSL.
+  Pour forcer l'ancien chemin : variable d'environnement `ORVAEN_DOCKER_NATIVE=0`.
+
+Ajoute aussi un fichier `.dockerignore` pour ne pas envoyer les gros dossiers inutiles : le terminal te prévient s'il
+voit un `node_modules`, `.git`, `vendor`… sans `.dockerignore`.
 
 ```text
 node_modules
@@ -122,7 +139,7 @@ volumes:
 | `Docker n'est pas installé` | Lance `apt install docker` |
 | L'installation s'arrête après l'activation de WSL2 | C'est normal : redémarre le PC, puis relance `apt install docker` |
 | `EPERM: operation not permitted, chmod` dans un conteneur | Machine encore sur l'ancien montage : `docker engine stop`, puis relance ta commande |
-| `docker build` très lent | `docker engine stop`, puis relance le build pour installer BuildKit ; ajoute un `.dockerignore` |
+| `docker build` très lent | `docker engine stop`, puis relance le build : il passera par le client Windows. Ajoute un `.dockerignore` |
 | `le moteur Docker ne répond pas` | Regarde `docker engine logs`, puis essaie `docker engine stop` et relance ta commande |
 | Tout recommencer | `apt remove docker -y`, puis `apt install docker` |
 

@@ -75,7 +75,7 @@ func TestParseLatestReleases(t *testing.T) {
 }
 
 func TestSetupScriptEmbedsEngine(t *testing.T) {
-	if !strings.Contains(setupScript, "dockerd >/var/log/docker.log") || !strings.Contains(setupScript, "\nORVAEN_EOF\n") {
+	if !strings.Contains(setupScript, `dockerd "$@" >/var/log/docker.log`) || !strings.Contains(setupScript, "\nORVAEN_EOF\n") {
 		t.Fatal("le script d'installation doit contenir le script du moteur et fermer le heredoc")
 	}
 }

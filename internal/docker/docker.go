@@ -23,22 +23,17 @@ import (
 const Distro = "orvaen-docker"
 
 // dataDir : où est stocké le disque virtuel de la machine.
-func dataDir() string {
-	base, err := os.UserCacheDir() // %LOCALAPPDATA% sous Windows
-	if err != nil {
-		base = os.TempDir()
-	}
-	return filepath.Join(base, "OrvaenTerminal", "docker-vm")
-}
+func dataDir() string { return filepath.Join(cacheBase(), "docker-vm") }
 
 // ---------------------------------------------------------------------------
 // Appels à wsl.exe
 
 func wslEnv() []string {
 	// WSL_UTF8 : sortie de wsl.exe en UTF-8 au lieu d'UTF-16.
-	// WSLENV : transmet le délai d'inactivité à la machine Linux.
-	env := append(os.Environ(), "WSL_UTF8=1")
-	wslenv := "ORVAEN_DOCKER_IDLE/u"
+	// WSLENV : transmet le délai d'inactivité et le dossier des certificats du moteur (chemin traduit
+	// en /mnt/c/… par WSL) à la machine Linux.
+	env := append(os.Environ(), "WSL_UTF8=1", "ORVAEN_DOCKER_CERTS="+serverCertsDir())
+	wslenv := "ORVAEN_DOCKER_IDLE/u:ORVAEN_DOCKER_CERTS/up"
 	if cur := os.Getenv("WSLENV"); cur != "" {
 		wslenv = cur + ":" + wslenv
 	}
@@ -119,6 +114,10 @@ func ensureRunning() int {
 // Trois lancements de wsl.exe en tout : préparation, moteur, attente.
 func startEngine() int {
 	ui.Info("Démarrage du moteur Docker…")
+	// Certificats du port TCP local, pour les builds par le client Windows (voir native.go).
+	if err := ensureCerts(); err != nil {
+		ui.Warn("certificats du moteur : " + err.Error() + " (les builds passeront par WSL).")
+	}
 	// Préparation : BuildKit et wsl.conf. Le moteur est arrêté : aucun conteneur n'est interrompu.
 	if wsl(inDistro("sh", "-c", prepareScript)...) == prepareRestart {
 		wslQuiet("--terminate", Distro)
@@ -150,12 +149,23 @@ func Run(args []string) int {
 		ui.Errorf("Docker n'est pas installé. Lance : apt install docker")
 		return 1
 	}
-	wargs := []string{"-d", Distro, "-u", "root"}
-	if cwd, err := os.Getwd(); err == nil {
-		wargs = append(wargs, "--cd", cwd)
+	cwd, cwdErr := os.Getwd()
+	if cwdErr == nil {
 		if hint := buildHint(args, cwd); hint != "" {
 			ui.Warn(hint)
 		}
+	}
+	// Builds : client docker Windows, qui lit le dossier sans passer par le partage /mnt/c (voir native.go).
+	if plan := planFor(args); plan != nil && os.Getenv("ORVAEN_DOCKER_NATIVE") != "0" && nativeReady() {
+		code := runNative(plan.native)
+		if code != 0 || plan.then == nil {
+			return code
+		}
+		args = plan.then
+	}
+	wargs := []string{"-d", Distro, "-u", "root"}
+	if cwdErr == nil {
+		wargs = append(wargs, "--cd", cwd)
 	}
 	wargs = append(append(wargs, "--exec", "sh", "-c", cliWrapper, "docker"), convertArgs(args)...)
 	// Un seul lancement de wsl.exe quand le moteur tourne déjà : le script vérifie lui-même que
@@ -369,6 +379,12 @@ func Install(elevate func(args ...string) int) int {
 		return code
 	}
 	wsl(inDistro("docker", "--version")...)
+	if runtime.GOARCH == "amd64" {
+		ui.Step("Client docker Windows (builds rapides, sans passer par le partage de fichiers)")
+		if err := installClient(); err != nil {
+			ui.Warn("client docker Windows non installé (" + err.Error() + ") : il sera retenté au premier build.")
+		}
+	}
 	ui.Info("Docker est prêt ! Essaie :  docker run --rm hello-world")
 	return 0
 }
@@ -381,6 +397,12 @@ func Upgrade() int {
 	}
 	ui.Step("Mise à jour de Docker Engine")
 	code := wsl(inDistro("sh", "-c", "apk add --no-cache -q docker-cli-buildx && apk upgrade --no-cache")...)
+	if runtime.GOARCH == "amd64" {
+		ui.Step("Mise à jour du client docker Windows (builds rapides)")
+		if err := installClient(); err != nil {
+			ui.Warn("client docker Windows : " + err.Error())
+		}
+	}
 	if code == 0 && engineRunning() {
 		ui.Info("Pour utiliser la nouvelle version tout de suite : docker engine stop")
 	}
@@ -408,6 +430,7 @@ func Uninstall(yes bool) int {
 		return code
 	}
 	_ = os.RemoveAll(dataDir())
+	_ = os.RemoveAll(clientDir())
 	ui.Info("Docker léger est désinstallé.")
 	return 0
 }
