@@ -93,6 +93,7 @@ Une ligne qui commence par une espace n'est pas gardée dans l'historique.
 |---|---|
 | `apt <commande> [paquets]` | Logiciels et mises à jour Windows, voir [apt](apt.md) |
 | `sudo <commande>` | Exécute en administrateur, voir [plus bas](#sudo) |
+| `time <commande>` | Mesure la durée d'une commande, comme sous bash : `time make test` affiche `real 0m4.026s` à la fin |
 | `docker`, `docker-compose` | Docker léger, voir [Docker](docker.md) |
 | `req <fichier.http>`, `req nouveau` | Requêtes HTTP, voir [req](req.md) |
 | `run [script]`, `run -p <a> <b>` | Scripts du projet (`terminal.json`), en parallèle avec `-p`, voir [run](scripts.md) |

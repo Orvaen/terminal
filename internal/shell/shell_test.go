@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // testShell crée un shell sans couleur dans un dossier temporaire servant aussi de dossier perso.
@@ -293,5 +294,24 @@ func TestHelpForCommand(t *testing.T) {
 	s.RunLine("help")
 	if !strings.Contains(out.String(), "help <commande>") {
 		t.Fatalf("help général : %q", out)
+	}
+}
+
+func TestTimeBuiltin(t *testing.T) {
+	s, out, errOut, _ := testShell(t)
+	if code := s.RunLine("time echo bonjour"); code != 0 {
+		t.Fatalf("code %d", code)
+	}
+	if out.String() != "bonjour\n" || !strings.Contains(errOut.String(), "\nreal\t0m0.") {
+		t.Fatalf("sortie %q, erreurs %q", out.String(), errOut.String())
+	}
+	if code := s.RunLine("time rmdir /nexistepas"); code == 0 {
+		t.Fatal("time doit rendre le code de la commande")
+	}
+	if got := formatTime(83*time.Second+250*time.Millisecond, false); got != "\nreal\t1m23.250s\n" {
+		t.Fatalf("obtenu %q", got)
+	}
+	if got := formatTime(1500*time.Millisecond, true); got != "real 1.50\n" {
+		t.Fatalf("obtenu %q", got)
 	}
 }

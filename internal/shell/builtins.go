@@ -33,7 +33,7 @@ var builtins map[string]builtin
 
 // Ordre d'affichage dans « help ».
 var builtinOrder = []string{
-	"apt", "sudo", "docker", "req", "run",
+	"apt", "sudo", "docker", "req", "run", "time",
 	"ls", "cd", "pwd", "cat", "touch", "mkdir", "rm", "rmdir", "cp", "mv",
 	"echo", "clear", "which", "export", "unset", "set", "env", "printenv", "path", "open", "prompt", "diag", "help", "exit",
 }
@@ -45,6 +45,7 @@ func init() {
 		"req":      {runReq, "req <fichier.http> | req nouveau", "Teste des requêtes HTTP (GET, POST...) décrites dans un fichier"},
 		"run":      {runScripts, "run [script] | run -p <a> <b>", "Lance les scripts du projet (terminal.json), en parallèle avec -p"},
 		"sudo":     {runSudo, "sudo <commande>", "Lance une commande en administrateur"},
+		"time":     {runTime, "time [-p] <commande>", "Mesure la durée d'une commande (time make test)"},
 		"ls":       {runLs, "ls [-a] [-l] [-h] [chemin...]", "Liste un dossier"},
 		"cd":       {runCd, "cd [dossier | - | ~]", "Change de dossier (accepte /c/Users/...)"},
 		"pwd":      {runPwd, "pwd", "Affiche le dossier courant"},
@@ -135,6 +136,32 @@ func runSudo(s *Shell, args []string) int {
 	}
 	ui.Info("Ouverture d'une fenêtre administrateur…")
 	return platform.RunSelfElevated("-c", line, "--pause")
+}
+
+// runTime mesure la durée d'une commande, comme le mot-clé time de bash. Seul le temps écoulé (real)
+// est mesuré : le temps processeur de tous les programmes lancés n'est pas connu sous Windows.
+func runTime(s *Shell, args []string) int {
+	posix := len(args) > 0 && args[0] == "-p"
+	if posix {
+		args = args[1:]
+	}
+	start := time.Now()
+	code := 0
+	if len(args) > 0 {
+		code = s.RunLine(joinArgs(args))
+	}
+	fmt.Fprint(s.errOut, formatTime(time.Since(start), posix))
+	return code
+}
+
+// formatTime : « real 0m4.026s » façon bash, ou « real 4.03 » avec -p (POSIX).
+func formatTime(d time.Duration, posix bool) string {
+	if posix {
+		return fmt.Sprintf("real %.2f\n", d.Seconds())
+	}
+	m := int(d / time.Minute)
+	sec := (d - time.Duration(m)*time.Minute).Seconds()
+	return fmt.Sprintf("\nreal\t%dm%.3fs\n", m, sec)
 }
 
 // needsAdmin : apt n'a besoin des droits admin que pour Windows Update,
