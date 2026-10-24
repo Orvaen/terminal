@@ -141,3 +141,33 @@ func TestReadFirstLine(t *testing.T) {
 		t.Errorf("fichier absent → %q", got)
 	}
 }
+
+func TestScriptToolsDirPutsUnixToolsFirst(t *testing.T) {
+	git := `C:\Program Files\Git\usr\bin`
+	if got := scriptToolsDir(git+`\sh.exe`, "windows"); got != git {
+		t.Errorf("sh de Git → %q, attendu %q", got, git)
+	}
+	if got := scriptToolsDir(`C:\msys64\usr\bin\bash.exe`, "windows"); got != `C:\msys64\usr\bin` {
+		t.Errorf("bash de msys2 → %q", got)
+	}
+	for _, p := range []string{`C:\Windows\System32\bash.exe`, `C:\Python312\python.exe`, "./build.bat"} {
+		if got := scriptToolsDir(p, "windows"); got != "" {
+			t.Errorf("%s ne doit pas toucher au PATH (obtenu %q)", p, got)
+		}
+	}
+	if got := scriptToolsDir("/bin/sh", "linux"); got != "" {
+		t.Errorf("Linux : PATH inchangé, obtenu %q", got)
+	}
+}
+
+func TestWithPathFirst(t *testing.T) {
+	env := []string{"HOME=C:\\Users\\Rayan", `Path=C:\Windows\System32;C:\Program Files\Git\usr\bin`, "X=1"}
+	got := withPathFirst(env, `C:\Program Files\Git\usr\bin`)
+	want := `Path=C:\Program Files\Git\usr\bin;C:\Windows\System32;C:\Program Files\Git\usr\bin`
+	if got[1] != want || got[0] != env[0] || got[2] != "X=1" || len(got) != 3 {
+		t.Errorf("withPathFirst = %v", got)
+	}
+	if got := withPathFirst([]string{"A=1"}, `D:\outils`); got[1] != `PATH=D:\outils` {
+		t.Errorf("PATH absent → %v", got)
+	}
+}

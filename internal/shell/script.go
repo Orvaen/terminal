@@ -43,11 +43,58 @@ func defaultScriptEnv() scriptEnv {
 
 // commandFor prépare l'exécution de path avec args, en passant par un interprète si c'est un script.
 func commandFor(path string, args []string) (*exec.Cmd, error) {
-	prog, full, err := scriptCommand(path, args, defaultScriptEnv())
+	env := defaultScriptEnv()
+	prog, full, err := scriptCommand(path, args, env)
 	if err != nil {
 		return nil, err
 	}
-	return exec.Command(prog, full...), nil
+	cmd := exec.Command(prog, full...)
+	if dir := scriptToolsDir(prog, env.goos); dir != "" {
+		cmd.Env = withPathFirst(os.Environ(), dir)
+	}
+	return cmd, nil
+}
+
+// scriptToolsDir : dossier des outils Unix à mettre en tête du PATH d'un script bash/sh.
+//
+// Le terminal place Git\usr\bin en fin de PATH pour que find, sort… tapés à la main restent ceux
+// de Windows. Un script shell attend au contraire les outils Unix (find -name, sort -u…) : comme
+// Git Bash, on les met en premier, pour ce script seulement. Sinon « find src -name '*.java' »
+// tombe sur find.exe de Windows : « Fichier introuvable - *.java ».
+func scriptToolsDir(prog, goos string) string {
+	if goos != "windows" || isWSLLauncher(prog) {
+		return ""
+	}
+	if b := base(prog); b != "bash" && b != "sh" {
+		return ""
+	}
+	i := strings.LastIndexAny(prog, `/\`)
+	if i <= 0 {
+		return ""
+	}
+	return prog[:i]
+}
+
+// withPathFirst renvoie l'environnement avec dir en tête du PATH (la clé peut s'écrire Path sous Windows).
+func withPathFirst(environ []string, dir string) []string {
+	out := make([]string, 0, len(environ)+1)
+	found := false
+	for _, kv := range environ {
+		if k, v, ok := strings.Cut(kv, "="); ok && strings.EqualFold(k, "PATH") && !found {
+			found = true
+			if v == "" {
+				out = append(out, k+"="+dir)
+			} else {
+				out = append(out, k+"="+dir+";"+v)
+			}
+			continue
+		}
+		out = append(out, kv)
+	}
+	if !found {
+		out = append(out, "PATH="+dir)
+	}
+	return out
 }
 
 // scriptCommand renvoie le programme réel à lancer et ses arguments.
