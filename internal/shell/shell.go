@@ -330,7 +330,11 @@ func (s *Shell) runSegment(seg segment) int {
 }
 
 func (s *Shell) execProgram(path string, args []string) int {
-	cmd := exec.Command(path, args...)
+	cmd, err := commandFor(path, args)
+	if err != nil {
+		s.errorf("terminal: %v", err)
+		return 127
+	}
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, s.out, s.errOut
 	if err := cmd.Run(); err != nil {
 		var ee *exec.ExitError

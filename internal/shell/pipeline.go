@@ -465,7 +465,13 @@ func (s *Shell) runPipeline(stages []stage, cmds []resolved) int {
 			}(i, c, e)
 			continue
 		}
-		cmd := exec.Command(c.path, append(append([]string{}, c.pre...), c.args...)...)
+		cmd, err := commandFor(c.path, append(append([]string{}, c.pre...), c.args...))
+		if err != nil {
+			s.errorf("terminal: %v", err)
+			codes[i] = 127
+			closeAll()
+			continue
+		}
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, e.out, e.err
 		if e.stdin != nil {
 			cmd.Stdin = e.stdin

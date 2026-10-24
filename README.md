@@ -26,6 +26,7 @@ $ sudo apt full-upgrade
 - **apt deps** : détecte les outils dont un projet a besoin (Node, Go, Python, Docker, make…) et les installe, avec les dépendances du projet.
 - **apt optimiser** : accélère le développement sous Windows (exclusions Windows Defender pour les caches et projets, Docker gardé démarré, compilation sur tous les cœurs, cache sccache), en demandant avant chaque changement ; `apt optimiser annuler` remet tout comme avant.
 - **sudo** : lance une commande en administrateur.
+- **Scripts** : `./build.sh` se lance comme dans Git Bash : le terminal lit le shebang (`#!/usr/bin/env sh`, `#!/bin/bash`, `python3`…) et passe par le bash de Git pour Windows ; un `.sh` sans shebang part sur bash, un `.ps1` sur PowerShell.
 - **Docker léger** : le vrai Docker Engine sans Docker Desktop, qui s'éteint tout seul quand il ne sert pas.
 - **Mise à jour à chaud** : `apt upgrade terminal`, sans réinstaller ni fermer ce qui tourne.
 - **run** : les scripts du projet dans `terminal.json`, comme ceux de `package.json`, et en parallèle avec `run -p` (à la place de concurrently).
