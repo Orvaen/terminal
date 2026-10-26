@@ -11,15 +11,19 @@ import (
 )
 
 // Usage : aide de la commande run.
-const Usage = `Usage : run [script] [-- arguments]
+const Usage = `Usage : run [options] [script] [arguments…]
 
-  run                    liste les scripts de terminal.json
-  run <script>           lance un script
-  run <script> -- args   ajoute des arguments à sa commande (run test -- f=00)
-  run <a> <b> …          lance plusieurs scripts l'un après l'autre (arrêt au premier échec)
-  run -p <a> <b> …       les lance en même temps, sorties préfixées (comme concurrently)
-  run --init             crée terminal.json (avec les scripts de package.json et du Makefile)
+  run                         liste les scripts de terminal.json
+  run <script>                lance un script
+  run <script> a b            lui passe des arguments          (run add test test)
+  run <script> --nom valeur   lui passe des arguments nommés   (run add --user test --password test)
+  run <a> <b> …               lance plusieurs scripts l'un après l'autre (arrêt au premier échec)
+  run -p <a> <b> …            les lance en même temps, sorties préfixées (comme concurrently)
+  run --init                  crée terminal.json (avec les scripts de package.json et du Makefile)
 
+Dans terminal.json, un script reçoit ses arguments avec $1, $2…, $@ (tous) ou ${nom}
+s'il les déclare dans "args" ; sinon ils sont ajoutés à la fin de sa commande.
+Les options de run (-p, --init) se placent avant le nom du script.
 terminal.json est cherché dans le dossier courant puis dans ses parents.
 `
 
@@ -27,15 +31,12 @@ terminal.json est cherché dans le dossier courant puis dans ses parents.
 func Main(r *Runner, cwd string, args []string) int {
 	var (
 		parallel bool
-		names    []string
-		extra    []string
+		first    = -1
 	)
-	for i := 0; i < len(args); i++ {
+	// Les options de run viennent avant le nom du script : ce qui suit appartient au script.
+	for i := 0; i < len(args) && first < 0; i++ {
 		a := args[i]
 		switch {
-		case a == "--":
-			extra = args[i+1:]
-			i = len(args)
 		case a == "-h" || a == "--help":
 			fmt.Fprint(r.Out, Usage)
 			return 0
@@ -43,12 +44,15 @@ func Main(r *Runner, cwd string, args []string) int {
 			return r.Init(cwd)
 		case a == "-p" || a == "--parallel":
 			parallel = true
+		case a == "--":
+			r.errorf("précise un script avant --")
+			return 2
 		case strings.HasPrefix(a, "-"):
 			r.errorf("option inconnue : %s", a)
 			fmt.Fprint(r.Err, Usage)
 			return 2
 		default:
-			names = append(names, a)
+			first = i
 		}
 	}
 
@@ -64,23 +68,70 @@ func Main(r *Runner, cwd string, args []string) int {
 		return 1
 	}
 
-	switch {
-	case len(names) == 0:
-		if len(extra) > 0 || parallel {
+	if first < 0 {
+		if parallel {
 			r.errorf("précise au moins un script")
 			return 2
 		}
 		r.List(f)
 		return 0
-	case len(extra) > 0 && len(names) > 1:
-		r.errorf("les arguments après -- ne marchent qu'avec un seul script")
-		return 2
-	case parallel:
-		return r.RunParallel(f, names)
-	case len(names) > 1:
-		return r.RunSequence(f, names)
 	}
-	return r.Run(f, names[0], extra)
+	name, rest := args[first], args[first+1:]
+
+	if parallel {
+		for _, n := range rest {
+			if strings.HasPrefix(n, "-") {
+				r.errorf("avec -p, on ne passe que des noms de scripts (%s)", n)
+				return 2
+			}
+		}
+		return r.RunParallel(f, append([]string{name}, rest...))
+	}
+
+	s, ok := f.Get(name)
+	if !ok {
+		r.unknown(f, name)
+		return 1
+	}
+	if len(rest) == 1 && (rest[0] == "-h" || rest[0] == "--help") && s.TakesArgs() {
+		if _, declared := s.declared("help"); !declared {
+			r.ScriptHelp(s)
+			return 0
+		}
+	}
+	// « run a b c » enchaîne des scripts seulement si a n'attend pas d'arguments
+	// et que tous les mots suivants sont des scripts ; sinon ce sont les arguments de a.
+	if len(rest) > 0 && !s.TakesArgs() && allScripts(f, rest) {
+		return r.RunSequence(f, append([]string{name}, rest...))
+	}
+	return r.Run(f, name, rest)
+}
+
+func allScripts(f *File, names []string) bool {
+	for _, n := range names {
+		if _, ok := f.Get(n); !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// ScriptHelp affiche comment appeler un script et ce qu'il lance.
+func (r *Runner) ScriptHelp(s Script) {
+	fmt.Fprintln(r.Out, "Usage : run "+s.Usage())
+	if s.Description != "" {
+		fmt.Fprintln(r.Out, "  "+s.Description)
+	}
+	for _, a := range s.Args {
+		if a.HasDefault {
+			fmt.Fprintf(r.Out, "  --%s  (par défaut : %s)\n", a.Name, orEmpty(a.Default))
+		} else {
+			fmt.Fprintf(r.Out, "  --%s  (obligatoire)\n", a.Name)
+		}
+	}
+	for _, l := range s.lines() {
+		fmt.Fprintln(r.Out, r.paint("2", "  > "+l))
+	}
 }
 
 // List affiche les scripts et ce qu'ils lancent.
@@ -88,7 +139,7 @@ func (r *Runner) List(f *File) {
 	fmt.Fprintln(r.Out, "Scripts de "+f.Path+" :")
 	width := 0
 	for _, s := range f.Scripts {
-		width = max(width, len(s.Name))
+		width = max(width, len(s.Usage()))
 	}
 	for _, s := range f.Scripts {
 		what := strings.Join(s.Steps, " && ")
@@ -98,12 +149,12 @@ func (r *Runner) List(f *File) {
 		if s.Cwd != "" {
 			what += r.paint("2", "  (dans "+s.Cwd+")")
 		}
-		fmt.Fprintf(r.Out, "  %s  %s\n", r.paint("1", fmt.Sprintf("%-*s", width, s.Name)), what)
+		fmt.Fprintf(r.Out, "  %s  %s\n", r.paint("1", fmt.Sprintf("%-*s", width, s.Usage())), what)
 		if s.Description != "" {
 			fmt.Fprintf(r.Out, "  %-*s  %s\n", width, "", r.paint("2", s.Description))
 		}
 	}
-	fmt.Fprintln(r.Out, "\nLance un script : run <nom>   Plusieurs en même temps : run -p <a> <b>")
+	fmt.Fprintln(r.Out, "\nLance un script : run <nom> [arguments]   Plusieurs en même temps : run -p <a> <b>")
 }
 
 // Init crée terminal.json dans dir, prérempli avec les scripts de package.json et les cibles du Makefile.

@@ -7,7 +7,8 @@
 //	    "up":    "make up",
 //	    "check": ["make up", "make test f=00"],
 //	    "api":   { "run": "npm run dev", "cwd": "api", "env": { "PORT": "3000" } },
-//	    "dev":   { "parallel": ["run api", "make logs"] }
+//	    "dev":   { "parallel": ["run api", "make logs"] },
+//	    "add":   { "run": "node add.js --user $user --password $password", "args": ["user", "password"] }
 //	  }
 //	}
 package scripts
@@ -34,6 +35,7 @@ type Script struct {
 	Env         map[string]string // variables ajoutées
 	Steps       []string          // commandes lancées l'une après l'autre
 	Parallel    []string          // commandes lancées en même temps
+	Args        []Arg             // arguments déclarés (run add <user> <password>)
 }
 
 // File : un terminal.json chargé, scripts dans l'ordre du fichier.
@@ -151,6 +153,7 @@ func parseScript(name string, raw json.RawMessage) (Script, error) {
 			Cwd         string            `json:"cwd"`
 			Env         map[string]string `json:"env"`
 			Description string            `json:"description"`
+			Args        json.RawMessage   `json:"args"`
 		}
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
@@ -158,6 +161,13 @@ func parseScript(name string, raw json.RawMessage) (Script, error) {
 			return bad(strings.TrimPrefix(err.Error(), "json: "))
 		}
 		s.Cwd, s.Env, s.Description = obj.Cwd, obj.Env, obj.Description
+		if obj.Args != nil {
+			args, err := parseArgs(obj.Args)
+			if err != nil {
+				return bad(err.Error())
+			}
+			s.Args = args
+		}
 		switch {
 		case obj.Run != nil && obj.Parallel != nil:
 			return bad(`"run" et "parallel" ne vont pas ensemble : choisis l'un des deux`)

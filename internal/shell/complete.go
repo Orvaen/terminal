@@ -104,6 +104,26 @@ func scriptCandidates(args []string) []string {
 	if err != nil {
 		return cands
 	}
+	// Après un script qui attend des arguments : ses options --nom pas encore tapées.
+	for i, a := range args {
+		if strings.HasPrefix(a, "-") {
+			continue
+		}
+		if sc, ok := f.Get(a); ok && sc.TakesArgs() {
+			var opts []string
+			for _, o := range sc.Options() {
+				used := false
+				for _, b := range args[i+1:] {
+					used = used || b == o || strings.HasPrefix(b, o+"=")
+				}
+				if !used {
+					opts = append(opts, o)
+				}
+			}
+			return opts
+		}
+		break
+	}
 	return append(f.Names(), cands...)
 }
 

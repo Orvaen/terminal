@@ -43,7 +43,7 @@ func init() {
 		"apt":      {runApt, "apt <commande> [paquets]", "Gestion des logiciels (winget) et mises à jour Windows"},
 		"docker":   {runDocker, "docker <commande>", "Docker léger, sans Docker Desktop (apt install docker)"},
 		"req":      {runReq, "req <fichier.http> | req nouveau", "Teste des requêtes HTTP (GET, POST...) décrites dans un fichier"},
-		"run":      {runScripts, "run [script] | run -p <a> <b>", "Lance les scripts du projet (terminal.json), en parallèle avec -p"},
+		"run":      {runScripts, "run [script] [args…] | run -p <a> <b>", "Lance les scripts du projet (terminal.json), en parallèle avec -p"},
 		"sudo":     {runSudo, "sudo <commande>", "Lance une commande en administrateur"},
 		"time":     {runTime, "time [-p] <commande>", "Mesure la durée d'une commande (time make test)"},
 		"ls":       {runLs, "ls [-a] [-l] [-h] [chemin...]", "Liste un dossier"},

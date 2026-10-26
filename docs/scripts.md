@@ -9,7 +9,8 @@
 ```text
 $ run                 # liste les scripts
 $ run up              # lance le script « up »
-$ run test -- f=00    # ajoute des arguments : make test f=00
+$ run add test test   # passe des arguments au script
+$ run add --user test --password test   # … ou nommés
 $ run up test         # l'un après l'autre, arrêt au premier échec
 $ run -p api web      # en même temps
 ```
@@ -50,12 +51,78 @@ lancer tes scripts depuis n'importe quel sous-dossier.
 | `cwd` | Dossier où lancer la commande, relatif à `terminal.json` (par défaut : le dossier de `terminal.json`) |
 | `env` | Variables d'environnement ajoutées, lues par les programmes (`process.env.PORT` en Node) |
 | `description` | Texte affiché par `run` |
+| `args` | Arguments du script, voir [Arguments](#arguments) |
 
 Chaque commande est une ligne du terminal : `&&`, `||`, `ls`, `rm`, `apt`, `docker`, les programmes du PATH…
 tout marche comme quand tu la tapes. Pour lancer un autre script, écris `run <nom>`.
 
 Comme avec npm, le dossier `node_modules/.bin` du projet est ajouté au PATH : `"build": "tsc"` utilise le
 TypeScript installé dans le projet.
+
+## Arguments
+
+Tout ce que tu tapes après le nom du script lui est passé.
+
+### Arguments déclarés (`args`)
+
+```json
+{
+  "scripts": {
+    "add": {
+      "run": "node scripts/add-user.js --user $user --password $password --role $role",
+      "args": ["user", "password", "role=membre"],
+      "description": "Ajoute un utilisateur"
+    }
+  }
+}
+```
+
+```text
+$ run add test secret                             # dans l'ordre de "args"
+$ run add --user test --password secret           # par leur nom
+$ run add --password=secret test --role admin     # on peut mélanger
+$ run add --help                                  # rappelle comment l'appeler
+```
+
+- `"role=membre"` donne une valeur par défaut ; sans `=`, l'argument est **obligatoire**.
+- Dans la commande, écris `$user` ou `${user}` (accolades utiles si un texte suit : `${user}_backup`).
+- Un argument manquant, une option inconnue ou un argument en trop arrête tout avant de lancer quoi que ce
+  soit, avec la bonne façon d'appeler le script.
+- Après `run add`, **Tab** propose `--user`, `--password`, `--role`.
+
+### Sans déclarer : `$1`, `$2`, `$@`
+
+Comme en shell :
+
+| Dans la commande | Devient |
+|---|---|
+| `$1`, `$2` … `$9` | Le 1er, 2e … argument tapé |
+| `$@` (ou `$*`) | Tous les arguments, tels quels |
+
+```json
+"deploy": "scp dist/app.zip $1:/srv/$2"
+```
+
+`run deploy serveur1 prod` lance `scp dist/app.zip serveur1:/srv/prod`.
+
+### Sans rien : ajoutés à la fin
+
+Si la commande n'utilise ni `$1`, ni `$@`, ni `args`, les arguments sont collés à la fin, comme
+`npm run x -- …` : avec `"test": "make test"`, `run test f=00` lance `make test f=00`.
+
+> [!NOTE]
+> Les valeurs arrivent intactes : espaces, guillemets, `$` ou `&` sont protégés (`run add "Jean Dupont" 'p@$$'`).
+> `$PATH`, `$HOME` et les autres variables d'environnement ne sont pas touchées : seuls `$1`…`$9`, `$@`, `$*`
+> et les noms déclarés dans `args` sont remplacés.
+
+### Arguments ou plusieurs scripts ?
+
+`run a b` enchaîne les scripts `a` puis `b` **seulement si** `a` n'attend pas d'arguments (pas d'`args`, pas de
+`$1`/`$@`) et que `b` est un script. Dans tous les autres cas, `b` est un argument de `a` : `run add test test`
+passe bien `test test` à `add`, même s'il existe un script `test`.
+
+Pour forcer des arguments, mets `--` : `run lint -- test` passe `test` à `lint`.
+Les options de `run` lui-même (`-p`, `--init`) se placent **avant** le nom du script.
 
 ## En même temps (à la place de concurrently)
 
@@ -117,3 +184,5 @@ Par exemple dans une tâche VS Code (`.vscode/tasks.json`) : `"command": "termin
 | `JSON invalide` | Une virgule en trop ou un guillemet manquant ; VS Code souligne l'erreur |
 | `il faut "run" … ou "parallel"` | Un objet doit contenir l'un des deux |
 | `le dossier "cwd" … n'existe pas` | Le chemin de `cwd` est relatif au dossier de `terminal.json` |
+| `argument manquant : x` | Ajoute-le (`run add valeur` ou `--x valeur`) ou donne-lui un défaut : `"x=défaut"` |
+| `option inconnue : --x` | Ajoute `x` dans `args`, ou utilise `$@` pour tout faire passer |

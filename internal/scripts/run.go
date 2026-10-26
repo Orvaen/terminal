@@ -51,7 +51,7 @@ func (r *Runner) errorf(format string, a ...any) {
 	fmt.Fprintln(r.Err, r.paint("1;31", "E:")+" "+fmt.Sprintf(format, a...))
 }
 
-// Run lance le script name. extra (les arguments après --) est ajouté à sa commande.
+// Run lance le script name avec ses arguments (remplacés dans $1, $@, ${nom}… ou ajoutés à la fin).
 func (r *Runner) Run(f *File, name string, extra []string) int {
 	s, ok := f.Get(name)
 	if !ok {
@@ -63,12 +63,12 @@ func (r *Runner) Run(f *File, name string, extra []string) int {
 		r.errorf("script %q : %v", name, err)
 		return 1
 	}
-	if len(extra) > 0 {
-		if len(s.Steps) != 1 {
-			r.errorf("script %q : les arguments après -- ne marchent qu'avec un script d'une seule commande", name)
-			return 1
+	if len(extra) > 0 || s.TakesArgs() {
+		if s, err = s.withArgs(extra); err != nil {
+			r.errorf("script %q : %v", name, err)
+			fmt.Fprintln(r.Err, "Usage : run "+s.Usage())
+			return 2
 		}
-		s.Steps = []string{s.Steps[0] + " " + quoteArgs(extra)}
 	}
 	if len(s.Parallel) > 0 {
 		return r.parallel(tasksFor(s.Parallel), dir, env)
@@ -342,12 +342,13 @@ func setEnv(env []string, key, value string) []string {
 	return append(out, key+"="+value)
 }
 
-// quoteArgs recolle les arguments après -- en gardant ceux qui contiennent des espaces.
+// quoteArgs recolle des arguments en une ligne de commande : ceux qui contiennent des espaces
+// ou des caractères spéciaux (& | ; $ …) sont mis entre guillemets pour arriver intacts.
 func quoteArgs(args []string) string {
 	out := make([]string, len(args))
 	for i, a := range args {
-		if a == "" || strings.ContainsAny(a, " \t\"'") {
-			a = `"` + strings.ReplaceAll(a, `"`, `\"`) + `"`
+		if a == "" || strings.ContainsAny(a, " \t\"'$`&|;<>()*?[]{}#~") {
+			a = `"` + escapeDouble(a) + `"`
 		}
 		out[i] = a
 	}

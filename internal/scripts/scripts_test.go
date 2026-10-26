@@ -220,7 +220,7 @@ func TestSequenceAndUnknown(t *testing.T) {
 		t.Fatalf("code %d, sortie : %s", code, out)
 	}
 	out.Reset()
-	if code := Main(r, dir, []string{"a", "nope"}); code != 1 || strings.Contains(out.String(), "A\n") {
+	if code := Main(r, dir, []string{"nope", "a"}); code != 1 || strings.Contains(out.String(), "A\n") {
 		t.Fatalf("un script inconnu doit tout annuler avant de lancer quoi que ce soit : %s", out)
 	}
 	if !strings.Contains(out.String(), "script inconnu : nope") || !strings.Contains(out.String(), "a, b") {
@@ -282,5 +282,97 @@ func TestSetEnvIgnoresCase(t *testing.T) {
 	env := setEnv([]string{"Path=a", "X=1"}, "PATH", "b")
 	if !reflect.DeepEqual(env, []string{"X=1", "Path=b"}) {
 		t.Fatalf("obtenu %v", env)
+	}
+}
+
+func TestArgsPositionalAndNamed(t *testing.T) {
+	dir, r, out := project(t, `{"scripts": {
+	  "add": { "run": "echo user=$user pass=${password} role=$role", "args": ["user", "password", "role=membre"] },
+	  "test": "echo TEST"
+	}}`)
+	for _, args := range [][]string{
+		{"add", "test", "test"},
+		{"add", "--user", "test", "--password", "test"},
+		{"add", "--password=test", "test"},
+	} {
+		out.Reset()
+		if code := Main(r, dir, args); code != 0 || !strings.Contains(out.String(), "user=test pass=test role=membre\n") {
+			t.Fatalf("%v : code %d, sortie : %s", args, code, out)
+		}
+		if strings.Contains(out.String(), "TEST") {
+			t.Fatalf("%v : « test » est un argument, pas le script test : %s", args, out)
+		}
+	}
+	out.Reset()
+	if code := Main(r, dir, []string{"add", "a b", `p"$x`, "--role", "admin"}); code != 0 || !strings.Contains(out.String(), `user=a b pass=p"$x role=admin`) {
+		t.Fatalf("valeurs spéciales : code %d, sortie : %s", code, out)
+	}
+}
+
+func TestArgsErrors(t *testing.T) {
+	dir, r, out := project(t, `{"scripts": {"add": { "run": "echo $user $password", "args": ["user", "password"] }}}`)
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"add", "x"}, "argument manquant : password"},
+		{[]string{"add", "x", "y", "z"}, "trop d'arguments : z"},
+		{[]string{"add", "--nope", "1"}, "option inconnue : --nope"},
+		{[]string{"add", "x", "--password"}, "--password attend une valeur"},
+	} {
+		out.Reset()
+		if code := Main(r, dir, tc.args); code != 2 || !strings.Contains(out.String(), tc.want) || !strings.Contains(out.String(), "run add <user> <password>") {
+			t.Errorf("%v : code %d, sortie : %s", tc.args, code, out)
+		}
+	}
+	out.Reset()
+	if code := Main(r, dir, []string{"add", "--help"}); code != 0 || !strings.Contains(out.String(), "--user  (obligatoire)") {
+		t.Fatalf("aide du script : %s", out)
+	}
+}
+
+func TestArgsShellStyleAndAppend(t *testing.T) {
+	dir, r, out := project(t, `{"scripts": {
+	  "pos":   "echo [$2] [$1]",
+	  "all":   ["echo debut", "echo \"$@\""],
+	  "plain": "echo plain",
+	  "other": "echo OTHER"
+	}}`)
+	if code := Main(r, dir, []string{"pos", "un", "deux"}); code != 0 || !strings.Contains(out.String(), "[deux] [un]") {
+		t.Fatalf("pos : %s", out)
+	}
+	out.Reset()
+	if code := Main(r, dir, []string{"all", "--x", "y z"}); code != 0 || !strings.Contains(out.String(), "--x y z\n") {
+		t.Fatalf("all : %s", out)
+	}
+	out.Reset()
+	// sans $1 ni "args" : ajoutés à la fin, avec ou sans --
+	if code := Main(r, dir, []string{"plain", "--user", "test"}); code != 0 || !strings.Contains(out.String(), "plain --user test") {
+		t.Fatalf("plain : %s", out)
+	}
+	out.Reset()
+	if code := Main(r, dir, []string{"plain", "--", "other"}); code != 0 || !strings.Contains(out.String(), "plain other") || strings.Contains(out.String(), "OTHER") {
+		t.Fatalf("plain -- : %s", out)
+	}
+	out.Reset()
+	// que des scripts derrière un script sans arguments : enchaînement
+	if code := Main(r, dir, []string{"plain", "other"}); code != 0 || !strings.Contains(out.String(), "OTHER") {
+		t.Fatalf("séquence : %s", out)
+	}
+}
+
+func TestTakesArgsIgnoresEnvVars(t *testing.T) {
+	f, err := Parse([]byte(`{"scripts": {"a": "echo $PATH ${HOME}", "b": "echo $1", "c": {"run": "echo", "args": ["x"]}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]bool{"a": false, "b": true, "c": true} {
+		s, _ := f.Get(name)
+		if s.TakesArgs() != want {
+			t.Errorf("%s : TakesArgs %v", name, !want)
+		}
+	}
+	if _, err := Parse([]byte(`{"scripts": {"a": {"run": "x", "args": ["a b"]}}}`)); err == nil || !strings.Contains(err.Error(), "invalide") {
+		t.Fatalf("nom invalide : %v", err)
 	}
 }

@@ -96,7 +96,7 @@ Une ligne qui commence par une espace n'est pas gardée dans l'historique.
 | `time <commande>` | Mesure la durée d'une commande, comme sous bash : `time make test` affiche `real 0m4.026s` à la fin |
 | `docker`, `docker-compose` | Docker léger, voir [Docker](docker.md) |
 | `req <fichier.http>`, `req nouveau` | Requêtes HTTP, voir [req](req.md) |
-| `run [script]`, `run -p <a> <b>` | Scripts du projet (`terminal.json`), en parallèle avec `-p`, voir [run](scripts.md) |
+| `run [script] [args…]`, `run -p <a> <b>` | Scripts du projet (`terminal.json`), avec arguments (`run add --user x`), en parallèle avec `-p`, voir [run](scripts.md) |
 | `ls [-a] [-l] [-h] [-1]`, `ll` | Liste un dossier. Les fichiers cachés de Windows sont masqués sans `-a` |
 | `cd [dossier]` | Change de dossier. `cd` seul : dossier perso ; `cd -` : dossier précédent ; accepte `/c/Users/...` comme Git Bash |
 | `pwd` | Affiche le dossier courant |
