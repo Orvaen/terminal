@@ -158,7 +158,12 @@ func parseScript(name string, raw json.RawMessage) (Script, error) {
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&obj); err != nil {
-			return bad(strings.TrimPrefix(err.Error(), "json: "))
+			msg := strings.TrimPrefix(err.Error(), "json: ")
+			if field, ok := strings.CutPrefix(msg, "unknown field "); ok {
+				msg = "champ inconnu " + field + ` (champs possibles : "run", "parallel", "cwd", "env", "description", "args").` +
+					" Si ce champ est nouveau, ton terminal est peut-être trop ancien : apt upgrade terminal"
+			}
+			return bad(msg)
 		}
 		s.Cwd, s.Env, s.Description = obj.Cwd, obj.Env, obj.Description
 		if obj.Args != nil {
