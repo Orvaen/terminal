@@ -13,25 +13,27 @@ import (
 // Usage : aide de la commande run.
 const Usage = `Usage : run [options] [script] [arguments…]
 
-  run                         liste les scripts de terminal.json
+  run                         lance le script "default" de terminal.json (sinon, liste les scripts)
+  run --list                  liste les scripts
   run <script>                lance un script
   run <script> a b            lui passe des arguments          (run add test test)
   run <script> --nom valeur   lui passe des arguments nommés   (run add --user test --password test)
   run <a> <b> …               lance plusieurs scripts l'un après l'autre (arrêt au premier échec)
   run -p <a> <b> …            les lance en même temps, sorties préfixées (comme concurrently)
   run --init                  crée terminal.json (avec les scripts de package.json et du Makefile)
+  run --export [--force]      ajoute les scripts à package.json, pour les lancer avec npm run
 
 Dans terminal.json, un script reçoit ses arguments avec $1, $2…, $@ (tous) ou ${nom}
 s'il les déclare dans "args" ; sinon ils sont ajoutés à la fin de sa commande.
-Les options de run (-p, --init) se placent avant le nom du script.
+Les options de run (-p, --list, --init, --export) se placent avant le nom du script.
 terminal.json est cherché dans le dossier courant puis dans ses parents.
 `
 
 // Main exécute « run <args> » depuis le dossier cwd.
 func Main(r *Runner, cwd string, args []string) int {
 	var (
-		parallel bool
-		first    = -1
+		parallel, list, export, force bool
+		first                         = -1
 	)
 	// Les options de run viennent avant le nom du script : ce qui suit appartient au script.
 	for i := 0; i < len(args) && first < 0; i++ {
@@ -44,6 +46,12 @@ func Main(r *Runner, cwd string, args []string) int {
 			return r.Init(cwd)
 		case a == "-p" || a == "--parallel":
 			parallel = true
+		case a == "-l" || a == "--list":
+			list = true
+		case a == "--export":
+			export = true
+		case a == "--force" || a == "-f":
+			force = true
 		case a == "--":
 			r.errorf("précise un script avant --")
 			return 2
@@ -54,6 +62,18 @@ func Main(r *Runner, cwd string, args []string) int {
 		default:
 			first = i
 		}
+	}
+
+	switch {
+	case force && !export:
+		r.errorf("--force va avec --export : run --export --force")
+		return 2
+	case export && (first >= 0 || parallel || list):
+		r.errorf("run --export ne prend pas de nom de script : il exporte tout terminal.json")
+		return 2
+	case list && (first >= 0 || parallel):
+		r.errorf("run --list ne prend pas de nom de script")
+		return 2
 	}
 
 	path, err := Find(cwd)
@@ -68,13 +88,19 @@ func Main(r *Runner, cwd string, args []string) int {
 		return 1
 	}
 
+	if export {
+		return r.Export(f, force)
+	}
 	if first < 0 {
 		if parallel {
 			r.errorf("précise au moins un script")
 			return 2
 		}
-		r.List(f)
-		return 0
+		if list || f.Default == "" {
+			r.List(f)
+			return 0
+		}
+		return r.Run(f, f.Default, nil)
 	}
 	name, rest := args[first], args[first+1:]
 
@@ -155,6 +181,11 @@ func (r *Runner) List(f *File) {
 		}
 	}
 	fmt.Fprintln(r.Out, "\nLance un script : run <nom> [arguments]   Plusieurs en même temps : run -p <a> <b>")
+	if f.Default != "" {
+		fmt.Fprintf(r.Out, "run seul lance « %s » (\"default\" dans %s)\n", f.Default, FileName)
+	} else {
+		fmt.Fprintf(r.Out, "Pour que run seul lance un script : \"default\": \"<nom>\" dans %s\n", FileName)
+	}
 }
 
 // Init crée terminal.json dans dir, prérempli avec les scripts de package.json et les cibles du Makefile.

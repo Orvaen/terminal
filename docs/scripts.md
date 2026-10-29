@@ -7,12 +7,14 @@
 `concurrently`.
 
 ```text
-$ run                 # liste les scripts
+$ run                 # lance le script par défaut (sinon, liste les scripts)
+$ run --list          # liste les scripts
 $ run up              # lance le script « up »
 $ run add test test   # passe des arguments au script
 $ run add --user test --password test   # … ou nommés
 $ run up test         # l'un après l'autre, arrêt au premier échec
 $ run -p api web      # en même temps
+$ run --export        # les ajoute à package.json, pour npm run
 ```
 
 ## Le fichier terminal.json
@@ -22,6 +24,7 @@ lancer tes scripts depuis n'importe quel sous-dossier.
 
 ```json
 {
+  "default": "dev",
   "scripts": {
     "up": "make up",
     "check": ["make up", "make test f=00"],
@@ -52,6 +55,9 @@ lancer tes scripts depuis n'importe quel sous-dossier.
 | `env` | Variables d'environnement ajoutées, lues par les programmes (`process.env.PORT` en Node) |
 | `description` | Texte affiché par `run` |
 | `args` | Arguments du script, voir [Arguments](#arguments) |
+
+`"default"` (facultatif) donne le script lancé par `run` tapé seul : ici `run` lance `dev`. Sans `"default"`,
+`run` liste les scripts. `run --list` les liste toujours.
 
 Chaque commande est une ligne du terminal : `&&`, `||`, `ls`, `rm`, `apt`, `docker`, les programmes du PATH…
 tout marche comme quand tu la tapes. Pour lancer un autre script, écris `run <nom>`.
@@ -161,6 +167,29 @@ terminal.json créé avec 5 script(s) repris de Makefile et package.json. Lance-
 `package.json` (`npm run dev` devient `dev`). Sans eux, il crée un exemple. Il ne remplace jamais un
 `terminal.json` existant.
 
+## Avec npm run (package.json)
+
+```text
+$ run --export
+Ajouté(s) à package.json : dev, up, add
+Lance-les avec : npm run dev   (arguments : npm run dev -- a b)
+```
+
+`run --export` ajoute chaque script de `terminal.json` aux `scripts` du `package.json` voisin, sous la forme
+`"dev": "terminal run dev"`. `npm run dev` passe alors par le terminal : `parallel`, `cwd`, `env` et `args`
+marchent comme avec `run dev`. Les arguments suivent `--`, comme d'habitude avec npm :
+`npm run add -- "Jean Dupont" --role admin`.
+
+- Le reste de `package.json` n'est pas touché : ordre des clés, indentation et fins de ligne sont gardés.
+  Sans `package.json`, il en crée un.
+- Un script qui existe déjà dans `package.json` est **gardé**. `run --export --force` le remplace.
+- Un script qui lance lui-même `npm run` du même nom (`"dev": "npm run dev"`, tel que `run --init` les crée)
+  n'est jamais exporté : `npm run dev` relancerait `terminal run dev` à l'infini.
+- Le terminal doit être installé sur la machine qui lance `npm run`.
+- Relance `run --export` après avoir ajouté des scripts à `terminal.json`.
+
+`terminal run <script> [arguments…]` marche aussi depuis PowerShell ou cmd, sans passer par `terminal -c`.
+
 ## Complétion
 
 Après `run`, **Tab** propose les scripts de `terminal.json`.
@@ -170,10 +199,12 @@ Après `run`, **Tab** propose les scripts de `terminal.json`.
 `run` est une commande du terminal. Ailleurs, passe par lui :
 
 ```powershell
-terminal -c "run dev"
+terminal run dev
+terminal run add "Jean Dupont" --role admin
 ```
 
-Par exemple dans une tâche VS Code (`.vscode/tasks.json`) : `"command": "terminal -c \"run dev\""`.
+Par exemple dans une tâche VS Code (`.vscode/tasks.json`) : `"command": "terminal run dev"`.
+Pour passer par `npm run`, voir [Avec npm run](#avec-npm-run-packagejson).
 
 ## En cas de problème
 
@@ -183,6 +214,9 @@ Par exemple dans une tâche VS Code (`.vscode/tasks.json`) : `"command": "termin
 | `script inconnu : x` | La liste des scripts s'affiche juste en dessous ; vérifie le nom |
 | `JSON invalide` | Une virgule en trop ou un guillemet manquant ; VS Code souligne l'erreur |
 | `il faut "run" … ou "parallel"` | Un objet doit contenir l'un des deux |
+| `"default" : le script "x" n'existe pas` | `"default"` doit reprendre le nom d'un script de `"scripts"` |
+| `gardé(s) : x` après `run --export` | `x` existe déjà dans `package.json` ; `run --export --force` pour le remplacer |
+| `'terminal' n'est pas reconnu…` avec `npm run` | Le terminal n'est pas installé (ou pas dans le PATH) sur cette machine |
 | `le dossier "cwd" … n'existe pas` | Le chemin de `cwd` est relatif au dossier de `terminal.json` |
 | `argument manquant : x` | Ajoute-le (`run add valeur` ou `--x valeur`) ou donne-lui un défaut : `"x=défaut"` |
 | `option inconnue : --x` | Ajoute `x` dans `args`, ou utilise `$@` pour tout faire passer |

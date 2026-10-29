@@ -3,6 +3,7 @@
 //
 //	terminal              session interactive
 //	terminal -c "ligne"   exécute une ligne puis quitte
+//	terminal run <script> [arguments…]  lance un script de terminal.json (utilisé par npm run après run --export)
 //	terminal --setup-vscode  ajoute le profil au terminal intégré de VS Code
 //	terminal --update     met à jour Orvaen Terminal (comme « apt upgrade terminal »)
 package main
@@ -15,8 +16,10 @@ import (
 
 	"github.com/Orvaen/terminal/internal/apt"
 	"github.com/Orvaen/terminal/internal/platform"
+	"github.com/Orvaen/terminal/internal/scripts"
 	"github.com/Orvaen/terminal/internal/setup"
 	"github.com/Orvaen/terminal/internal/shell"
+	"github.com/Orvaen/terminal/internal/ui"
 	"github.com/Orvaen/terminal/internal/update"
 )
 
@@ -41,6 +44,16 @@ func run() int {
 	}
 
 	args := os.Args[1:]
+	// « terminal run … » : les arguments vont tels quels à run, sans repasser par une ligne
+	// à découper (espaces et guillemets de « npm run add -- "Jean Dupont" » restent intacts).
+	if len(args) > 0 && args[0] == "run" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		return scripts.Main(scripts.NewRunner(ui.ColorEnabled()), cwd, args[1:])
+	}
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--pause":
@@ -69,7 +82,7 @@ func run() int {
 			fmt.Printf("%s %s\n", shell.AppName, apt.Version)
 			return 0
 		case "--help", "-h":
-			fmt.Println("Usage : terminal [-c \"commande\"] [--update] [--version]")
+			fmt.Println("Usage : terminal [-c \"commande\"] [run <script> [arguments…]] [--update] [--version]")
 			return 0
 		}
 	}

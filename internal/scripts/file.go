@@ -3,6 +3,7 @@
 // (à la place de concurrently).
 //
 //	{
+//	  "default": "dev",
 //	  "scripts": {
 //	    "up":    "make up",
 //	    "check": ["make up", "make test f=00"],
@@ -42,6 +43,7 @@ type Script struct {
 type File struct {
 	Path    string
 	Dir     string
+	Default string // script lancé par « run » tapé seul (vide : run liste les scripts)
 	Scripts []Script
 }
 
@@ -104,6 +106,7 @@ func Load(path string) (*File, error) {
 func Parse(data []byte) (*File, error) {
 	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")) // BOM laissé par certains éditeurs Windows
 	var top struct {
+		Default json.RawMessage `json:"default"`
 		Scripts json.RawMessage `json:"scripts"`
 	}
 	if err := json.Unmarshal(data, &top); err != nil {
@@ -129,6 +132,14 @@ func Parse(data []byte) (*File, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	if top.Default != nil && string(bytes.TrimSpace(top.Default)) != "null" {
+		if err := json.Unmarshal(top.Default, &f.Default); err != nil {
+			return nil, errors.New(`"default" : attendu le nom d'un script, ex. "default": "dev"`)
+		}
+		if _, ok := f.Get(f.Default); !ok {
+			return nil, fmt.Errorf(`"default" : le script %q n'existe pas (scripts : %s)`, f.Default, strings.Join(f.Names(), ", "))
+		}
 	}
 	return f, nil
 }
