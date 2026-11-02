@@ -201,7 +201,7 @@ func (s *Shell) relaunch(version string) {
 	if _, err := os.Stat(exe); err != nil {
 		return
 	}
-	fmt.Fprintf(s.out, "%s Relance du terminal en %s dans cette fenêtre…\n", s.paint("1;32", "==>"), version)
+	fmt.Fprintln(s.out)
 	// La nouvelle version augmente SHLVL : on lui donne le niveau d'avant ce terminal.
 	if lvl, err := strconv.Atoi(os.Getenv("SHLVL")); err == nil && lvl > 0 {
 		os.Setenv("SHLVL", strconv.Itoa(lvl-1))

@@ -142,7 +142,6 @@ func UpdatedTo() string { return updatedTo }
 
 // Run cherche et installe la dernière version. force : réinstalle même si la version est identique.
 func Run(current string, force bool) int {
-	ui.Step("Recherche d'une mise à jour d'Orvaen Terminal")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	rel, err := Latest(ctx)
 	cancel()
@@ -152,7 +151,7 @@ func Run(current string, force bool) int {
 	}
 	saveCheck(rel.Tag)
 	if rel.Tag == current && !force {
-		ui.Info("Orvaen Terminal est déjà à jour (" + current + ").")
+		ui.Info(ui.Color("32", "✓") + " Orvaen Terminal est déjà à jour (" + current + ").")
 		return 0
 	}
 
@@ -161,19 +160,14 @@ func Run(current string, force bool) int {
 		ui.Errorf("dossier d'installation introuvable : %v", err)
 		return 1
 	}
-	ui.Step(fmt.Sprintf("Mise à jour %s → %s", current, rel.Tag))
+	ui.Step(fmt.Sprintf("Orvaen Terminal %s → %s", current, rel.Tag))
 	if err := Apply(rel, dir, runtime.GOARCH); err != nil {
 		ui.Errorf("la mise à jour a échoué, rien n'a été modifié : %v", err)
 		return 1
 	}
 	updatedTo = rel.Tag
-	ui.Info("Orvaen Terminal est à jour (" + rel.Tag + ").")
-	if RelaunchHere {
-		ui.Info("Les autres fenêtres déjà ouvertes gardent l'ancienne version jusqu'à leur fermeture ;")
-	} else {
-		ui.Info("Les fenêtres déjà ouvertes gardent l'ancienne version jusqu'à leur fermeture ;")
-	}
-	ui.Info("ce qui tourne (Docker, conteneurs, serveurs) continue sans interruption.")
+	ui.Info(ui.Color("32", "✓") + " Installé.")
+	ui.Info(ui.Color("2", "Les autres fenêtres ouvertes restent en "+current+" jusqu'à leur fermeture."))
 	return 0
 }
 
