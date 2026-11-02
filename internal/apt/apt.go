@@ -186,6 +186,9 @@ func upgradeOne(p string) int {
 	if c, ok := findComponent(p); ok {
 		return upgradeComponent(p, c, upgradeOne)
 	}
+	if t, ok := portableInstalled(p); ok {
+		return installExt(t, true)
+	}
 	if isNode(p) {
 		if code, handled := upgradeNode(false); handled {
 			return code
@@ -245,6 +248,10 @@ func cmdInstall(pkgs []string, yes bool) int {
 		if t, ok := findExtTool(p); ok {
 			return installExt(t, false)
 		}
+		// Sans droits administrateur : la version portable officielle, sans demande d'élévation.
+		if t, ok := usePortable(p); ok {
+			return installExt(t, false)
+		}
 		if buildEssentialNames[strings.ToLower(p)] {
 			return installBuildEssential()
 		}
@@ -280,11 +287,7 @@ func cmdInstall(pkgs []string, yes bool) int {
 }
 
 func installTarget(name string, res resolution) int {
-	t := []string{name}
-	if res.id != "" {
-		t = []string{"--id", res.id, "--exact"}
-	}
-	return winget(append(append([]string{"install"}, t...), acceptSource, acceptPackage)...)
+	return installUserScope(name, res)
 }
 
 func cmdRemove(pkgs []string, yes bool) int {
@@ -297,6 +300,9 @@ func cmdRemove(pkgs []string, yes bool) int {
 			return dockerUninstall(yes)
 		}
 		if t, ok := findExtTool(p); ok {
+			return removeExt(t)
+		}
+		if t, ok := portableInstalled(p); ok {
 			return removeExt(t)
 		}
 		if c, ok := findComponent(p); ok {

@@ -78,6 +78,8 @@ type extTool struct {
 	install  func(dir, version string) error // installe dans dir (vide), version donnée par latest
 	remove   func(dir string)                // nettoyage en plus de la suppression du dossier
 	inPlace  bool                            // s'installe directement à sa place (chemins absolus : venv Python)
+	extra    func() []string                 // autres dossiers à ajouter au PATH (ex. %APPDATA%\npm)
+	Cmd      string                          // commande fournie (portable.go : déjà installée autrement ?)
 }
 
 var extTools = []extTool{
@@ -231,6 +233,15 @@ func finishExt(t extTool, have, latest string, installed bool) int {
 		ui.Warn("impossible d'ajouter " + t.binDir() + " au PATH : " + err.Error())
 	}
 	prependProcessPath(t.binDir())
+	if t.extra != nil {
+		for _, d := range t.extra() {
+			_ = os.MkdirAll(d, 0o755)
+			if err := addUserPath(d); err != nil {
+				ui.Warn("impossible d'ajouter " + d + " au PATH : " + err.Error())
+			}
+			prependProcessPath(d)
+		}
+	}
 	if installed {
 		ui.Info(fmt.Sprintf("%s mis à jour : %s → %s.", t.Label, have, latest))
 	} else {
@@ -252,6 +263,11 @@ func removeExt(t extTool) int {
 		return 1
 	}
 	_ = removeUserPath(t.binDir())
+	if t.extra != nil {
+		for _, d := range t.extra() {
+			_ = removeUserPath(d) // le dossier lui-même est gardé : il contient tes paquets globaux
+		}
+	}
 	ui.Info(t.Label + " est désinstallé.")
 	return 0
 }
@@ -259,7 +275,7 @@ func removeExt(t extTool) int {
 // upgradeExtTools : pour « apt upgrade », met à jour les outils qu'apt a installés.
 func upgradeExtTools() int {
 	code := 0
-	for _, t := range extTools {
+	for _, t := range append(append([]extTool{}, extTools...), portableTools...) {
 		if _, installed := t.installedVersion(); installed {
 			ui.Step("Mise à jour de " + t.Label)
 			if c := installExt(t, true); c != 0 && code == 0 {

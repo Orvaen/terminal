@@ -74,6 +74,10 @@ et leur dossier est ajouté à ton PATH. `+"`apt upgrade`"+` les met à jour, `+
 		}
 		fmt.Fprintf(&b, "| %s | %s | %s | %s |\n", code(append([]string{tool.Name}, tool.Aliases...)), tool.Label, tool.Source, needs)
 	}
+	for _, tool := range portableTools {
+		fmt.Fprintf(&b, "| %s | %s portable, quand tu n'es pas administrateur ([détails](apt.md#droits-administrateur)) | %s | |\n",
+			code(append([]string{tool.Name}, tool.Aliases...)), tool.Label, tool.Source)
+	}
 	var be []string
 	for n := range buildEssentialNames {
 		be = append(be, n)

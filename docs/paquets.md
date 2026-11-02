@@ -26,6 +26,8 @@ et leur dossier est ajouté à ton PATH. `apt upgrade` les met à jour, `apt rem
 | `maven`, `mvn`, `apache-maven` | Maven | Apache (dernière version stable), somme SHA-512 vérifiée | `java` |
 | `gradle` | Gradle | services.gradle.org, somme SHA-256 vérifiée | `java` |
 | `poetry`, `python3-poetry`, `python-poetry` | Poetry | installeur officiel install.python-poetry.org | `python` |
+| `node`, `nodejs`, `node.js`, `nodejs-lts`, `openjs.nodejs.lts` | Node.js portable, quand tu n'es pas administrateur ([détails](apt.md#droits-administrateur)) | nodejs.org (zip portable, dernière LTS), somme SHA-256 vérifiée | |
+| `go`, `golang`, `golang-go`, `golang.go` | Go portable, quand tu n'es pas administrateur ([détails](apt.md#droits-administrateur)) | go.dev (zip portable), somme SHA-256 vérifiée | |
 | `build-essential`, `buildtools`, `msvc`, `visual-studio-build-tools`, `visualcpp-build-tools`, `vs-buildtools` | Compilateur C/C++ MSVC : `Microsoft.VisualStudio.BuildTools` avec la charge de travail « Développement Desktop en C++ » et les bibliothèques Spectre-mitigated | winget | |
 | `msvc-spectre`, `spectre`, `spectre-libs`, `vc-spectre` | Bibliothèques Spectre-mitigated, ajoutées à un MSVC déjà installé | installeur de Visual Studio, en ligne de commande | MSVC (sinon installé avec) |
 

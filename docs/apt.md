@@ -288,9 +288,30 @@ node  v26.12.0 Current disponible (hors LTS) : apt install node-current
 
 ## Droits administrateur
 
-`apt install`, `upgrade` et `remove` n'ont pas besoin d'être lancés en administrateur : quand un installeur en a
-besoin, Windows affiche sa fenêtre de confirmation (UAC). Seules les **mises à jour Windows** (`full-upgrade`,
-`windows-update`) demandent un terminal administrateur ; si tu n'en es pas un, `apt` en ouvre un pour cette étape.
+Comme sous Linux, `apt install` installe **pour toi seul**, et `sudo apt install` **pour tout l'ordinateur**.
+Sur un poste sans droits administrateur (entreprise, école), `apt install` marche donc sans fenêtre UAC :
+
+- **Node.js** (`node`, `npm`, `npx`…) et **Go** : `apt` installe la version portable officielle (zip de nodejs.org
+  ou go.dev, somme SHA-256 vérifiée) dans `%LOCALAPPDATA%\OrvaenTerminal\outils`, et ajoute à ton PATH son dossier
+  et celui de tes paquets globaux (`%APPDATA%\npm` pour `npm install -g`, `%USERPROFILE%\go\bin` pour `go install`).
+  `apt upgrade` la met à jour (dernière LTS pour Node.js), `apt remove` la retire ;
+- **les autres logiciels** : `apt` demande à winget l'installation pour l'utilisateur (`--scope user`). Si le
+  logiciel n'existe qu'en installation pour tout l'ordinateur, `apt` le dit et winget la lance : Windows demande
+  alors les droits administrateur.
+
+```text
+$ apt install npm
+==> Installation de npm
+npm est fourni avec Node.js : installation de Node.js.
+Node.js v26.13.0, depuis nodejs.org (zip portable, dernière LTS)
+Node.js v26.13.0 est installé dans C:\Users\toi\AppData\Local\OrvaenTerminal\outils\node.
+```
+
+Si Node.js ou Go est déjà installé autrement (par winget), `apt` continue de passer par winget pour lui.
+En administrateur (`sudo apt install node`), rien ne change : l'installeur officiel est utilisé.
+
+Les **mises à jour Windows** (`full-upgrade`, `windows-update`) demandent un terminal administrateur ; si tu n'en es
+pas un, `apt` en ouvre un pour cette étape.
 
 Les mises à jour Windows passent par l'API officielle de Windows Update : aucun module à installer. Si un redémarrage
 est nécessaire, `apt` te le signale.

@@ -136,6 +136,10 @@ func checkNode() (plan nodePlan, ok bool, err error) {
 	if !officialEnabled {
 		return plan, false, nil
 	}
+	// Node.js portable (installé sans droits administrateur) : mis à jour avec les outils d'apt.
+	if _, portable := portableInstalled("node"); portable {
+		return plan, false, nil
+	}
 	cur, found := nodeInstalled()
 	if !found {
 		return plan, false, nil

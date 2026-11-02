@@ -48,7 +48,10 @@ func fakeWinget(t *testing.T, codes map[string]int) *[][]string {
 	}
 	wingetAvailable = func() bool { return true }
 	stdout = io.Discard
+	oldPortable := portableEnabled
+	portableEnabled = false // installation portable : voir portable_test.go
 	t.Cleanup(func() {
+		portableEnabled = oldPortable
 		winget, wingetAvailable, stdout = oldW, oldA, oldOut
 		selfUpdate, selfCheck = oldSU, oldSC
 		wingetLines, exportInstalled, runTool = oldLines, oldExport, oldRunTool
