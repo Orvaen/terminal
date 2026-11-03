@@ -46,6 +46,7 @@ type Shell struct {
 
 	// Variables (vars.go)
 	vars        map[string]string // variables du terminal, non transmises aux programmes
+	aliases     map[string]string // alias de la session (alias.go)
 	ps1         string            // PS1 choisi dans la session (sinon le style de la commande prompt)
 	started     time.Time
 	secondsAt   time.Time // départ de $SECONDS
@@ -120,6 +121,7 @@ func (s *Shell) Interactive() int {
 			s.paint("1;33", "Mise à jour :"), latest, s.paint("1", "apt upgrade terminal"))
 	}
 	update.RefreshInBackground(apt.Version)
+	s.loadRC() // ~/.terminalrc : alias et réglages gardés d'une session à l'autre
 
 	// Ctrl+C interrompt la commande en cours, pas le shell.
 	sig := make(chan os.Signal, 1)
@@ -276,6 +278,7 @@ func (s *Shell) RunLine(line string) int {
 }
 
 func (s *Shell) runSegment(seg segment) int {
+	seg.text = s.expandAliases(seg.text)
 	// Tubes et redirections : le terminal les gère lui-même (pipeline.go), PowerShell en repli.
 	if seg.special {
 		return s.runSpecial(seg.text)

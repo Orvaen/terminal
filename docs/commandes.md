@@ -111,11 +111,31 @@ Une ligne qui commence par une espace n'est pas gardée dans l'historique.
 | `clear` | Efface l'écran |
 | `which <commande>` | Indique si une commande est intégrée, ou où se trouve le programme |
 | `export NOM=valeur`, `unset NOM`, `set`, `env`, `printenv [NOM]` | Variables (voir [Variables](#variables)) |
+| `alias nom='valeur'`, `unalias nom` | Raccourcis de commande (voir [Alias](#alias)) |
 | `open [chemin]` | Ouvre un dossier ou un fichier dans l'Explorateur Windows |
 | `help [commande]`, `exit [code]` | Aide (`help prompt`, `help path`, ou `<commande> --help`), quitter |
 
 > [!IMPORTANT]
 > `rm` refuse de supprimer la racine d'un disque (`C:\`) et ton dossier personnel, même avec `-rf`.
+
+## Alias
+
+Comme dans bash, un alias remplace le premier mot d'une commande :
+
+```bash
+alias code='"C:\Program Files (x86)\Microsoft VS Code\Code.exe"'
+code .
+alias ll='ls -la'
+alias          # liste les alias
+unalias ll     # en supprime un
+```
+
+Un alias tapé dans le terminal ne dure que la session. Pour le garder, mets-le dans `~/.terminalrc`,
+relu à chaque ouverture du terminal (une commande par ligne, `#` pour les commentaires) :
+
+```bash
+echo "alias ll='ls -la'" >> ~/.terminalrc
+```
 
 ## Enchaîner des commandes
 

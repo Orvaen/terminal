@@ -35,7 +35,7 @@ var builtins map[string]builtin
 var builtinOrder = []string{
 	"apt", "sudo", "docker", "req", "run", "time",
 	"ls", "cd", "pwd", "cat", "touch", "mkdir", "rm", "rmdir", "cp", "mv",
-	"echo", "clear", "which", "export", "unset", "set", "env", "printenv", "path", "open", "prompt", "diag", "help", "exit",
+	"echo", "clear", "which", "alias", "unalias", "export", "unset", "set", "env", "printenv", "path", "open", "prompt", "diag", "help", "exit",
 }
 
 func init() {
@@ -59,6 +59,8 @@ func init() {
 		"echo":     {runEcho, "echo [-n] [texte...]", "Affiche du texte"},
 		"clear":    {runClear, "clear", "Efface l'écran"},
 		"which":    {runWhich, "which <commande...>", "Indique où se trouve une commande"},
+		"alias":    {runAlias, "alias [nom='valeur']", "Raccourci de commande (gardé dans ~/.terminalrc)"},
+		"unalias":  {runUnalias, "unalias [-a] nom...", "Supprime un alias"},
 		"export":   {runExport, "export NOM=valeur", "Transmet une variable aux programmes (help variables)"},
 		"unset":    {runUnset, "unset NOM...", "Supprime une variable"},
 		"env":      {runEnv, "env", "Liste les variables d'environnement"},
@@ -730,6 +732,10 @@ func runWhich(s *Shell, args []string) int {
 	}
 	code := 0
 	for _, a := range args {
+		if v, ok := s.aliases[a]; ok {
+			fmt.Fprintf(s.out, "%s : alias de %s\n", a, v)
+			continue
+		}
 		if _, ok := builtins[strings.ToLower(a)]; ok {
 			fmt.Fprintf(s.out, "%s : commande intégrée\n", a)
 			continue
