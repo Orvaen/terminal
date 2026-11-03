@@ -387,17 +387,26 @@ func editUserPath(dir string, add bool) error {
 	return WritePath("user", raw)
 }
 
-// FindInstalledExe cherche name.exe dans le dossier des programmes installés (ceux de « Applications
-// installées », d'après le registre), pour un installeur qui n'a pas ajouté son dossier au PATH.
-// Renvoie le dossier qui le contient, ou "".
+// FindInstalledExe cherche la commande name (name.exe, name.cmd ou name.bat) dans le dossier des
+// programmes installés (ceux de « Applications installées », d'après le registre), pour un
+// installeur qui n'a pas ajouté son dossier au PATH. Le sous-dossier bin passe en premier : c'est
+// là que les logiciels rangent leur commande (VS Code : bin\code.cmd à côté de Code.exe).
+// Sans InstallLocation (installations gérées par l'informatique), le dossier de l'icône ou du
+// désinstalleur sert de repli. Renvoie le dossier qui contient la commande, ou "".
 func FindInstalledExe(name string) string {
-	script := `$n = ` + psQuote(name+".exe") + `; ` +
+	script := `$n = ` + psQuote(name) + `; ` +
 		`$keys = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',` +
 		`'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',` +
 		`'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'; ` +
+		`function dirOf($v) { if (-not $v) { return $null }; $v = ($v -split ',')[0].Trim().Trim('"'); ` +
+		`if ($v -match '^(.+?\.exe)') { $v = $Matches[1].Trim('"') }; ` +
+		`if (Test-Path -LiteralPath $v -PathType Leaf) { return Split-Path -LiteralPath $v }; return $null } ` +
 		`foreach ($k in Get-ItemProperty $keys -ErrorAction SilentlyContinue) { ` +
-		`$l = $k.InstallLocation; if (-not $l) { continue }; $l = $l.Trim('"'); ` +
-		`foreach ($d in @($l, (Join-Path $l 'bin'))) { if (Test-Path (Join-Path $d $n)) { $d; exit } } }`
+		`$roots = @(); if ($k.InstallLocation) { $roots += $k.InstallLocation.Trim().Trim('"') }; ` +
+		`foreach ($p in @($k.DisplayIcon, $k.UninstallString)) { $d = dirOf $p; if ($d) { $roots += $d } }; ` +
+		`foreach ($r in $roots) { if (-not (Test-Path -LiteralPath $r)) { continue }; ` +
+		`foreach ($d in @((Join-Path $r 'bin'), $r)) { foreach ($e in '.exe', '.cmd', '.bat') { ` +
+		`if (Test-Path -LiteralPath (Join-Path $d ($n + $e))) { $d; exit } } } } }`
 	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.Output()
