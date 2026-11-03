@@ -36,6 +36,8 @@ func runPrompt(s *Shell, args []string) int {
 	case "aide", "help", "--help", "-h":
 		fmt.Fprint(s.out, promptHelp)
 		return 0
+	case "nom", "name":
+		return s.promptName(args[1:])
 	case "perso", "custom":
 		if len(args) < 2 {
 			s.errorf("usage : prompt perso \"{cyan}{dossier}{/} {symbole-fleche}\"   (voir prompt aide)")
@@ -70,6 +72,37 @@ func runPrompt(s *Shell, args []string) int {
 	return 0
 }
 
+// promptName : prompt nom ["Prénom Nom"] | prompt nom --windows
+// Change seulement le nom affiché dans le prompt ({user}), pas USERNAME ni le compte Windows.
+func (s *Shell) promptName(args []string) int {
+	name := strings.TrimSpace(strings.Join(args, " "))
+	switch {
+	case name == "":
+		if n := loadPromptName(); n != "" {
+			fmt.Fprintf(s.out, "Nom affiché : %s (nom Windows : %s)\n", n, windowsUser())
+		} else {
+			fmt.Fprintf(s.out, "Nom affiché : celui de Windows, %s\n", windowsUser())
+		}
+		fmt.Fprintln(s.out, `Pour le changer : prompt nom "Prénom Nom"   Pour revenir au nom Windows : prompt nom --windows`)
+		return 0
+	case name == "--windows":
+		name = ""
+	case strings.ContainsAny(name, "{}\n"):
+		s.errorf("prompt: le nom ne peut pas contenir { } ni de retour à la ligne")
+		return 1
+	}
+	if err := savePromptName(name); err != nil {
+		s.errorf("prompt: %v", err)
+		return 1
+	}
+	if name == "" {
+		fmt.Fprintf(s.out, "Le prompt affiche de nouveau ton nom Windows (%s).\n", windowsUser())
+	} else {
+		fmt.Fprintf(s.out, "Le prompt affiche maintenant « %s », gardé pour les prochaines fenêtres.\n", name)
+	}
+	return 0
+}
+
 // indentPreview décale l'aperçu et termine par un retour à la ligne.
 func indentPreview(p string) string {
 	p = strings.TrimPrefix(p, "\n")
@@ -84,6 +117,7 @@ const promptHelp = `Créer ton propre prompt : prompt perso "<format>"
 
 Éléments
   {user} {host}       ton nom d'utilisateur, le nom du PC
+                      (pour afficher un autre nom : prompt nom "Prénom Nom")
   {dir}               le dossier façon Linux : ~/Desktop/projet
   {dossier}           seulement le nom du dossier : projet
   {chemin}            le chemin Windows : C:\Users\toi\Desktop\projet

@@ -116,3 +116,36 @@ func TestPromptCommandSavesChoice(t *testing.T) {
 		t.Fatalf("style inconnu : %d %q", code, errOut)
 	}
 }
+
+func TestPromptName(t *testing.T) {
+	s, out, _, _ := testShell(t)
+	cfg := filepath.Join(t.TempDir(), "cfg.json")
+	old := configPath
+	configPath = func() string { return cfg }
+	t.Cleanup(func() { configPath = old })
+	t.Setenv("USERNAME", "EL MONSSOURI Rayan")
+
+	if code := s.RunLine(`prompt nom "Rayan El Manssouri"`); code != 0 {
+		t.Fatalf("code %d", code)
+	}
+	if u := s.context().User; u != "Rayan El Manssouri" {
+		t.Fatalf("nom : %q", u)
+	}
+	// Changer de style garde le nom.
+	s.RunLine("prompt minimal")
+	if u := s.context().User; u != "Rayan El Manssouri" {
+		t.Fatalf("nom après prompt minimal : %q", u)
+	}
+	if os.Getenv("USERNAME") != "EL MONSSOURI Rayan" {
+		t.Fatal("USERNAME modifié")
+	}
+	out.Reset()
+	s.RunLine("prompt nom")
+	if !strings.Contains(out.String(), "Rayan El Manssouri") {
+		t.Fatalf("affichage : %q", out)
+	}
+	s.RunLine("prompt nom --windows")
+	if u := s.context().User; u != "EL MONSSOURI Rayan" {
+		t.Fatalf("retour au nom Windows : %q", u)
+	}
+}

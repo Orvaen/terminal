@@ -106,6 +106,43 @@ func savePromptConfig(c promptConfig) error {
 	return os.WriteFile(p, append(b, '\n'), 0o644)
 }
 
+// windowsUser : le nom du compte, tel que Windows le donne.
+func windowsUser() string {
+	return firstNonEmpty(os.Getenv("USERNAME"), os.Getenv("USER"), "user")
+}
+
+// loadPromptName : le nom choisi avec « prompt nom » (vide : celui de Windows).
+func loadPromptName() string {
+	var c struct {
+		Name string `json:"prompt_nom"`
+	}
+	if b, err := os.ReadFile(configPath()); err == nil {
+		_ = json.Unmarshal(b, &c)
+	}
+	return c.Name
+}
+
+func savePromptName(name string) error {
+	p := configPath()
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return err
+	}
+	all := map[string]any{}
+	if b, err := os.ReadFile(p); err == nil {
+		_ = json.Unmarshal(b, &all)
+	}
+	if name == "" {
+		delete(all, "prompt_nom")
+	} else {
+		all["prompt_nom"] = name
+	}
+	b, err := json.MarshalIndent(all, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(p, append(b, '\n'), 0o644)
+}
+
 // promptFormat : le format en vigueur (thème choisi, format perso, sinon classique).
 func promptFormat(c promptConfig) string {
 	if c.Theme == "perso" && c.Format != "" {
@@ -132,7 +169,7 @@ func (s *Shell) context() promptContext {
 	cwd, _ := os.Getwd()
 	host, _ := os.Hostname()
 	return promptContext{
-		User:  firstNonEmpty(os.Getenv("USERNAME"), os.Getenv("USER"), "user"),
+		User:  firstNonEmpty(loadPromptName(), windowsUser()),
 		Host:  host,
 		Cwd:   cwd,
 		Home:  homeDir(),

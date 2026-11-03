@@ -28,6 +28,17 @@ $ prompt fleche
 Dans tous les styles, le symbole (`$`, `❯`) passe en rouge si la dernière commande a échoué, et devient `#` en
 administrateur. La branche Git est lue directement dans `.git` : le prompt reste instantané, même dans un gros dépôt.
 
+### Le nom affiché
+
+Le prompt affiche le nom de ton compte Windows. Pour en afficher un autre :
+
+```text
+$ prompt nom "Rayan El Manssouri"
+$ prompt nom --windows      # revient au nom Windows
+```
+
+Seul le prompt change : le compte Windows et la variable `USERNAME` gardent leur nom.
+
 ### Ton propre prompt
 
 ```text
