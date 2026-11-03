@@ -137,6 +137,9 @@ relu à chaque ouverture du terminal (une commande par ligne, `#` pour les comme
 echo "alias ll='ls -la'" >> ~/.terminalrc
 ```
 
+Les programmes à fenêtre (VS Code, Notepad, l'Explorateur…) sont lancés à part, comme dans cmd ou
+PowerShell : le terminal rend la main tout de suite, et les fermer ne dépend plus de lui.
+
 ## Enchaîner des commandes
 
 | Opérateur | Effet | Exemple |

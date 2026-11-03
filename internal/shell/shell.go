@@ -338,6 +338,14 @@ func (s *Shell) execProgram(path string, args []string) int {
 		s.errorf("terminal: %v", err)
 		return 127
 	}
+	// Programme fenêtré (code, notepad…) : on ne l'attend pas, et il survit au terminal.
+	if runtime.GOOS == "windows" && isGUIApp(cmd.Path) {
+		if err := startDetached(cmd); err != nil {
+			s.errorf("terminal: %v", err)
+			return 126
+		}
+		return 0
+	}
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, s.out, s.errOut
 	if err := cmd.Run(); err != nil {
 		var ee *exec.ExitError
