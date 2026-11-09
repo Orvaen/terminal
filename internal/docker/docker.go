@@ -141,6 +141,10 @@ func Run(args []string) int {
 	if len(args) > 0 && args[0] == "engine" {
 		return engine(args[1:])
 	}
+	// Moteur désigné par l'utilisateur (DOCKER_HOST, DOCKER_CONTEXT) : on le respecte (voir external.go).
+	if target := externalEngine(os.Getenv); target != "" {
+		return runExternal(args, target)
+	}
 	if runtime.GOOS != "windows" {
 		ui.Errorf("ce Docker léger n'est disponible que sous Windows.")
 		return 1
