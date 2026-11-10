@@ -269,3 +269,18 @@ func TestJavaList(t *testing.T) {
 		t.Errorf("26 (ni LTS ni la plus récente) ne devrait pas être listé :\n%s", s)
 	}
 }
+
+func TestRemoveSystemJavaExplains(t *testing.T) {
+	fakeJava(t, false)
+	old := toolLookPath
+	t.Cleanup(func() { toolLookPath = old })
+	toolLookPath = func(string) (string, error) {
+		return `C:\Program Files\Common Files\Oracle\Java\javapath\java.exe`, nil
+	}
+	if _, ok := javaNotRemovable("java"); !ok {
+		t.Fatal("le Java système devrait être expliqué")
+	}
+	if _, ok := javaNotRemovable("gradle"); ok {
+		t.Fatal("gradle n'est pas un JDK")
+	}
+}

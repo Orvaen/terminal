@@ -339,6 +339,10 @@ func cmdRemove(pkgs []string, yes bool) int {
 		}
 		code := winget(append(append([]string{"uninstall"}, exactTarget(ids[0])...), acceptSource)...)
 		if isNoPackageFound(code) {
+			if msg, ok := javaNotRemovable(p); ok {
+				ui.Info(msg)
+				return code
+			}
 			ui.Info(p + " n'est pas installé (la liste : apt list).")
 		}
 		return code

@@ -636,3 +636,18 @@ func versionArgs(v int) []string {
 	}
 	return []string{strconv.Itoa(v)}
 }
+
+// javaNotRemovable : « apt remove java » quand le Java présent n'a été installé ni par winget ni par
+// apt java (installeur d'Oracle, poste géré par l'informatique) : on explique au lieu de « pas installé ».
+func javaNotRemovable(name string) (string, bool) {
+	if _, ok := javaPackage(name); !ok {
+		return "", false
+	}
+	p, err := toolLookPath("java")
+	if err != nil || p == "" || isJDKBin(filepath.Dir(p)) {
+		return "", false
+	}
+	return "Le « java » de ce PC (" + p + ") a été installé pour tout l'ordinateur, hors winget : seul un\n" +
+		"   administrateur peut le retirer. Pas besoin de le supprimer : apt java install 21 installe un JDK\n" +
+		"   pour toi seul, qui passe devant dans le terminal (et JAVA_HOME pour Gradle et Maven).", true
+}
