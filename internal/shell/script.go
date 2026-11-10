@@ -103,8 +103,12 @@ func scriptCommand(path string, args []string, env scriptEnv) (string, []string,
 		return path, args, nil
 	}
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".exe", ".com", ".bat", ".cmd":
+	case ".exe", ".com":
 		return path, args, nil
+	case ".bat", ".cmd":
+		// Un .bat passe par cmd.exe, qui lit « ./gradlew.bat » comme la commande « . » :
+		// « '.' n'est pas reconnu en tant que commande interne ». Avec des \, il le trouve.
+		return strings.ReplaceAll(path, "/", `\`), args, nil
 	case ".ps1":
 		ps, err := firstFound(env, "pwsh", "powershell")
 		if err != nil {

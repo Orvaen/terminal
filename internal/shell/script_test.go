@@ -79,7 +79,9 @@ func TestScriptCommandWindows(t *testing.T) {
 		{"./outil", gitBash, []string{"-e", "./outil", "--vite"}},
 		{"./gen.py", `C:\Python312\python.exe`, []string{"./gen.py", "--vite"}},
 		{`C:\Jeux\build.sh`, gitBash, []string{"C:/Jeux/build.sh", "--vite"}},
-		{"./build.bat", "./build.bat", []string{"--vite"}},
+		{"./build.bat", `.\build.bat`, []string{"--vite"}}, // cmd.exe ne comprend pas « ./ »
+		{"./gradlew.bat", `.\gradlew.bat`, []string{"--vite"}},
+		{"outils/mvnw.cmd", `outils\mvnw.cmd`, []string{"--vite"}},
 		{`C:\Go\bin\go.exe`, `C:\Go\bin\go.exe`, []string{"--vite"}},
 		{"./notes.txt", "./notes.txt", []string{"--vite"}},
 		{"./tache.ps1", path["powershell"], []string{"-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "./tache.ps1", "--vite"}},
