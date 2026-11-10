@@ -78,6 +78,9 @@ func New() *Shell {
 	s.promptFmt = promptFormat(loadPromptConfig())
 	addUnixTools()
 	setupCoreutils() // Coreutils de Microsoft, s'il est installé, passe en tête du PATH
+	if bin := apt.ActiveJDKBin(); bin != "" {
+		os.Setenv("PATH", withFirst(os.Getenv("PATH"), bin)) // le JDK d'apt java avant un Java système
+	}
 	applyPathPrefs() // l'ordre choisi avec « path monter / masquer » passe avant tout
 	loadPSCommands() // pour reconnaître une commande introuvable (notfound.go)
 	if restore, ok := platform.EnableRawInput(); ok {

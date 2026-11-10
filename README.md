@@ -43,6 +43,7 @@ Chaque push sur `main` publie une nouvelle version. La mise à jour se fait sans
 - **Shell Linux** : `ls`, `cd`, `cat`, `rm`, `cp`, `mv`, `mkdir -p`, `&&` et `||`, tubes et redirections (`|`, `>`, `2>&1`), jokers (`*.log`, `src/**/*.ts`, `{a,b}`), variables (`$HOME`, `${f%.*}`, `$(commande)`, `$((1+2))`), complétion avec Tab.
 - **Alias** : `alias ll='ls -la'`, gardés d'une session à l'autre dans `~/.terminalrc`.
 - **apt** : installe et met à jour les logiciels via winget, et Windows via Windows Update. Comprend les noms Linux (`code`, `fd-find`…).
+- **apt java** : plusieurs JDK Temurin côte à côte, sans droits administrateur (`apt java install 21`, `apt java use 21`).
 - **apt deps** : détecte les outils d'un projet (Node, Go, Python, Docker, make…) et les installe avec ses dépendances.
 - **apt optimiser** : exclusions Windows Defender, compilation sur tous les cœurs, cache sccache. Demande avant chaque changement, `apt optimiser annuler` remet tout comme avant.
 - **sudo** : lance une commande en administrateur.

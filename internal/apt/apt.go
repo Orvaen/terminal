@@ -99,6 +99,9 @@ func Run(args []string) int {
 	case "optimiser", "optimise", "optimize", "optimisation":
 		return cmdOptimise(inv.Packages, inv.Yes)
 	}
+	if inv.Command == "java" || inv.Command == "jdk" {
+		return cmdJava(inv.Packages)
+	}
 	if inv.Command == "deps" || inv.Command == "build-dep" {
 		return cmdDeps(inv.Packages, inv.Command == "build-dep", inv.Yes)
 	}
@@ -161,6 +164,10 @@ func cmdUpgrade(pkgs []string) int {
 		if ec := upgradeExtTools(); code == 0 {
 			code = ec
 		}
+		// JDK installés par apt java
+		if jc := upgradeJDKs(); code == 0 {
+			code = jc
+		}
 		// Une compilation locale (build.ps1) n'est pas remplacée sans le demander : apt upgrade terminal.
 		if !update.IsDev(Version) {
 			if sc := selfUpdate(false); code == 0 {
@@ -182,6 +189,9 @@ func upgradeOne(p string) int {
 	}
 	if t, ok := findExtTool(p); ok {
 		return installExt(t, true)
+	}
+	if code, handled := upgradeJava(p); handled {
+		return code
 	}
 	if c, ok := findComponent(p); ok {
 		return upgradeComponent(p, c, upgradeOne)
@@ -211,6 +221,9 @@ func upgradeOne(p string) int {
 		if code != 0 && result == 0 {
 			result = code
 		}
+	}
+	if _, isJava := javaPackage(p); isJava && result != 0 {
+		ui.Info("Les JDK s'installent aussi sans winget ni droits admin, en plusieurs versions : apt java install 21")
 	}
 	return result
 }
@@ -247,6 +260,10 @@ func cmdInstall(pkgs []string, yes bool) int {
 		}
 		if t, ok := findExtTool(p); ok {
 			return installExt(t, false)
+		}
+		// Un JDK sans droits administrateur : apt java (zip Temurin, sans demande d'élévation).
+		if v, ok := useJavaPortable(p); ok {
+			return javaInstallCmd([]string{versionArg(v)})
 		}
 		// Sans droits administrateur : la version portable officielle, sans demande d'élévation.
 		if t, ok := usePortable(p); ok {
@@ -304,6 +321,9 @@ func cmdRemove(pkgs []string, yes bool) int {
 		}
 		if t, ok := portableInstalled(p); ok {
 			return removeExt(t)
+		}
+		if v, ok := javaPackage(p); ok && len(installedJDKs()) > 0 {
+			return javaRemoveCmd(versionArgs(v))
 		}
 		if c, ok := findComponent(p); ok {
 			return removeComponent(p, c)
@@ -397,6 +417,7 @@ Commandes :
   windows-update       Installe uniquement les mises à jour Windows (admin)
   deps [install]       Outils dont le projet a besoin, et leur installation (= build-dep)
   optimiser [etat|annuler]  Accélère le dev : Defender, Docker, compilation (demande avant)
+  java [action] [v]    Plusieurs JDK sans droits admin : list, install, use, remove (apt java help)
   alias [nom id]       Tes noms : apt alias code Microsoft.VisualStudioCode (-r pour oublier)
   version              Affiche la version
 

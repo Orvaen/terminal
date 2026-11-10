@@ -25,6 +25,7 @@ et `apt.exe` permet de l'utiliser aussi depuis PowerShell ou cmd.
 | `apt deps` | Outils dont le projet a besoin, et ce qui manque, voir [plus bas](#les-outils-dun-projet--apt-deps) |
 | `apt deps install` | Installe ce qui manque, puis les dépendances du projet (alias `apt build-dep`) |
 | `apt optimiser [etat\|annuler]` | Accélère le développement (Defender, Docker, compilation), voir [plus bas](#accélérer-le-développement--apt-optimiser) |
+| `apt java [action] [version]` | Plusieurs JDK côte à côte, sans droits administrateur, voir [plus bas](#plusieurs-jdk--apt-java) |
 | `apt alias [nom identifiant]` | Tes noms de paquets, voir [plus bas](#tes-noms--apt-alias) |
 | `apt help`, `apt version` | Aide, version |
 
@@ -144,6 +145,38 @@ Sur le dépôt de VS Code, par exemple, `apt deps` trouve : Node 24 épinglé pa
 Composer, Maven, Gradle et Poetry sont installés par `apt` lui-même (voir
 [Installés par apt lui-même](#installés-par-apt-lui-même)). Pour le C/C++, `apt deps` installe gcc ; MSVC, s'il est
 déjà installé (`apt install build-essential`), est reconnu même s'il n'est pas dans le PATH.
+
+## Plusieurs JDK : apt java
+
+`apt java` installe des JDK Temurin (Eclipse Adoptium) en zip, sans droits administrateur, et en garde plusieurs
+côte à côte, comme SDKMAN sous Linux. Chaque version majeure a son dossier dans
+`%LOCALAPPDATA%\OrvaenTerminal\outils\jdk\<version>`, et l'archive est vérifiée par sa somme SHA-256.
+
+| Commande | Ce que ça fait |
+|---|---|
+| `apt java` (ou `apt java list`) | Versions disponibles (les LTS et la plus récente), et celles installées |
+| `apt java installed` | Versions installées (`*` : l'active) |
+| `apt java install [version]` | Installe un JDK, par défaut la dernière LTS. Le premier installé devient l'actif |
+| `apt java use <version>` | Choisit le JDK actif : `JAVA_HOME` et PATH de ton compte, sans droits administrateur |
+| `apt java remove <version>` | Désinstalle un JDK |
+| `apt java upgrade [version]` | Met à jour dans la même version majeure (21.0.12 → 21.0.13), `JAVA_HOME` ne change pas |
+| `apt java current` | Le JDK actif |
+
+Les versions s'écrivent `21`, `jdk21`, `openjdk-21`, `temurin-21`, `lts` ou `latest`.
+
+```text
+$ apt java install 21
+JDK 21 : jdk-21.0.13+9, depuis Eclipse Adoptium (zip, somme SHA-256 vérifiée)
+JDK actif : 21 (jdk-21.0.13+9). JAVA_HOME = C:\Users\dev\AppData\Local\OrvaenTerminal\outils\jdk\21
+```
+
+Sans droits administrateur, `apt install java` (ou `openjdk-21-jdk`, `jdk17`…) passe aussi par `apt java`, puisque le
+JDK de winget s'installe pour tout l'ordinateur. `apt upgrade` met à jour les JDK installés ainsi, et `apt remove`
+les retire.
+
+Un Java installé pour tout l'ordinateur (l'installeur d'Oracle, par exemple) reste en place. Son dossier est dans le
+PATH système, qui passe avant celui de l'utilisateur : dans PowerShell et cmd, `java` reste donc celui-là. Dans le
+terminal, le JDK actif passe en tête, et Gradle et Maven (`gradlew` compris) suivent `JAVA_HOME` partout.
 
 ## Accélérer le développement : apt optimiser
 
