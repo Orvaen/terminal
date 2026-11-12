@@ -85,6 +85,7 @@ build.ps1            compile et installe
 install.ps1          installeur
 ```
 
+This is AI generated.
 ---
 
 © Arkerion. Tous droits réservés. Le logo est la propriété d'Arkerion.
