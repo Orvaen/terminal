@@ -185,7 +185,7 @@ func TestLsColumns(t *testing.T) {
 	s, out, _, _ := testShell(t)
 	s.RunLine("touch un deux trois quatre cinq six sept")
 	out.Reset()
-	s.RunLine("ls")
+	s.RunLine("ls -C")
 	lines := strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
 	if len(lines) >= 7 || len(lines) == 0 {
 		t.Fatalf("ls devrait afficher en colonnes : %q", out.String())
@@ -313,5 +313,41 @@ func TestTimeBuiltin(t *testing.T) {
 	}
 	if got := formatTime(1500*time.Millisecond, true); got != "real 1.50\n" {
 		t.Fatalf("obtenu %q", got)
+	}
+}
+
+func TestLsTree(t *testing.T) {
+	s, out, _, work := testShell(t)
+	s.RunLine("mkdir web api && touch README.md b.txt")
+	out.Reset()
+	s.RunLine("ls")
+	want := filepath.Base(work) + "/\n├── api/\n├── web/\n├── b.txt\n└── README.md\n"
+	if got := out.String(); got != want {
+		t.Fatalf("ls en arbre :\n%s\nattendu :\n%s", got, want)
+	}
+}
+
+func TestTree(t *testing.T) {
+	s, out, _, work := testShell(t)
+	s.RunLine("mkdir -p api/src node_modules/x && touch api/src/main.go api/go.mod node_modules/x/i.js README.md")
+	out.Reset()
+	s.RunLine("tree")
+	want := filepath.Base(work) + `/
+├── api/
+│   ├── src/
+│   │   └── main.go
+│   └── go.mod
+├── node_modules/ …
+└── README.md
+
+3 dossiers, 3 fichiers
+`
+	if got := out.String(); got != want {
+		t.Fatalf("tree :\n%s\nattendu :\n%s", got, want)
+	}
+	out.Reset()
+	s.RunLine("tree -L 1 -d")
+	if got := out.String(); strings.Contains(got, "src") || !strings.Contains(got, "2 dossiers") {
+		t.Fatalf("tree -L 1 -d : %q", got)
 	}
 }

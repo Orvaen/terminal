@@ -62,7 +62,7 @@ var windowsNotes = map[string]string{
 	"openssh-client": "OpenSSH est déjà intégré à Windows : ssh, scp et sftp marchent tout de suite.",
 	"openssh":        "OpenSSH est déjà intégré à Windows : ssh, scp et sftp marchent tout de suite.",
 	"ssh":            "OpenSSH est déjà intégré à Windows : ssh, scp et sftp marchent tout de suite.",
-	"tree":           "tree est déjà intégré à Windows.",
+	"tree":           "tree est déjà intégré au terminal (tree, tree -L 2).",
 	"sudo":           "sudo est déjà intégré au terminal.",
 	"tar":            "tar est déjà intégré à Windows.",
 	"unzip":          "Windows ouvre les .zip tout seul ; en ligne de commande : tar -xf fichier.zip.",

@@ -63,7 +63,7 @@ Pour ces paquets, `apt` explique l'équivalent au lieu d'installer autre chose.
 | `ssh` | OpenSSH est déjà intégré à Windows : ssh, scp et sftp marchent tout de suite. |
 | `sudo` | sudo est déjà intégré au terminal. |
 | `tar` | tar est déjà intégré à Windows. |
-| `tree` | tree est déjà intégré à Windows. |
+| `tree` | tree est déjà intégré au terminal (tree, tree -L 2). |
 | `unzip` | Windows ouvre les .zip tout seul ; en ligne de commande : tar -xf fichier.zip. |
 | `zip` | en ligne de commande : tar -a -cf archive.zip dossier (intégré à Windows), ou apt install 7zip. |
 

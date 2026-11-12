@@ -108,7 +108,8 @@ Une ligne qui commence par une espace n'est pas gardée dans l'historique.
 | `docker`, `docker-compose` | Docker léger, voir [Docker](docker.md) |
 | `req <fichier.http>`, `req nouveau` | Requêtes HTTP, voir [req](req.md) |
 | `run [script] [args…]`, `run -p <a> <b>` | Scripts du projet (`terminal.json`), avec arguments (`run add --user x`), en parallèle avec `-p`, script par défaut, export vers `npm run` avec `--export`, voir [run](scripts.md) |
-| `ls [-a] [-l] [-h] [-1]`, `ll` | Liste un dossier. Les fichiers cachés de Windows sont masqués sans `-a` |
+| `ls [-a] [-l] [-h] [-1] [-C]`, `ll` | Liste un dossier en arbre, dossiers d'abord, comme dans les README (`-C` : l'ancien affichage en colonnes). Les fichiers cachés de Windows sont masqués sans `-a` |
+| `tree [-a] [-d] [-L n] [chemin]` | Arborescence complète d'un dossier. `-L 2` : 2 niveaux, `-d` : dossiers seulement. `node_modules`, `.git`, `vendor`… sont affichés sans être dépliés (sauf avec `-a`) |
 | `cd [dossier]` | Change de dossier. `cd` seul : dossier perso ; `cd -` : dossier précédent ; accepte `/c/Users/...` comme Git Bash |
 | `pwd` | Affiche le dossier courant |
 | `cat <fichier...>` | Affiche le contenu de fichiers |

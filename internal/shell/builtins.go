@@ -34,7 +34,7 @@ var builtins map[string]builtin
 // Ordre d'affichage dans « help ».
 var builtinOrder = []string{
 	"apt", "sudo", "docker", "req", "run", "time",
-	"ls", "cd", "pwd", "cat", "touch", "mkdir", "rm", "rmdir", "cp", "mv",
+	"ls", "tree", "cd", "pwd", "cat", "touch", "mkdir", "rm", "rmdir", "cp", "mv",
 	"echo", "clear", "which", "alias", "unalias", "export", "unset", "set", "env", "printenv", "path", "open", "prompt", "diag", "help", "exit",
 }
 
@@ -46,7 +46,8 @@ func init() {
 		"run":      {runScripts, "run [script] [args…] | run -p <a> <b>", "Lance les scripts du projet (terminal.json), en parallèle avec -p"},
 		"sudo":     {runSudo, "sudo <commande>", "Lance une commande en administrateur"},
 		"time":     {runTime, "time [-p] <commande>", "Mesure la durée d'une commande (time make test)"},
-		"ls":       {runLs, "ls [-a] [-l] [-h] [chemin...]", "Liste un dossier"},
+		"ls":       {runLs, "ls [-a] [-l] [-h] [-C] [chemin...]", "Liste un dossier en arbre (-C : en colonnes)"},
+		"tree":     {runTree, "tree [-a] [-d] [-L n] [chemin]", "Arborescence d'un dossier et de ses sous-dossiers"},
 		"cd":       {runCd, "cd [dossier | - | ~]", "Change de dossier (accepte /c/Users/...)"},
 		"pwd":      {runPwd, "pwd", "Affiche le dossier courant"},
 		"cat":      {runCat, "cat [fichier...]", "Affiche le contenu de fichiers"},
@@ -192,7 +193,7 @@ type lsItem struct {
 }
 
 func runLs(s *Shell, args []string) int {
-	flags, paths, err := parseFlags("ls", args, "alh1")
+	flags, paths, err := parseFlags("ls", args, "alh1C")
 	if err != nil {
 		s.errorf("%v", err)
 		return 2
@@ -219,8 +220,14 @@ func runLs(s *Shell, args []string) int {
 	if len(files) > 0 {
 		s.printLs(files, flags)
 	}
+	tree := !flags['l'] && !flags['1'] && !flags['C']
 	for i, d := range dirs {
-		if len(paths) > 1 {
+		if tree {
+			if i > 0 || len(files) > 0 {
+				fmt.Fprintln(s.out)
+			}
+			fmt.Fprintln(s.out, s.paint("1;34", treeRootName(d))+"/")
+		} else if len(paths) > 1 {
 			if i > 0 || len(files) > 0 {
 				fmt.Fprintln(s.out)
 			}
@@ -249,6 +256,10 @@ func runLs(s *Shell, args []string) int {
 }
 
 func (s *Shell) printLs(items []lsItem, flags map[rune]bool) {
+	if !flags['l'] && !flags['1'] && !flags['C'] {
+		s.printLsTree(items) // les dossiers d'abord, comme dans les README
+		return
+	}
 	sort.Slice(items, func(i, j int) bool { return strings.ToLower(items[i].name) < strings.ToLower(items[j].name) })
 
 	if flags['l'] {
@@ -278,7 +289,6 @@ func (s *Shell) printLs(items []lsItem, flags map[rune]bool) {
 		}
 		return
 	}
-
 	// Affichage en colonnes, comme ls : remplissage colonne par colonne.
 	if len(items) == 0 {
 		return
@@ -313,6 +323,174 @@ func (s *Shell) printLs(items []lsItem, flags map[rune]bool) {
 			}
 		}
 		fmt.Fprintln(s.out, line.String())
+	}
+}
+
+// treeRootName : nom affiché en haut de l'arbre (« idem-prefa » pour « . »).
+func treeRootName(d string) string {
+	if abs, err := filepath.Abs(d); err == nil {
+		if base := filepath.Base(abs); base != string(filepath.Separator) && base != "." && !strings.HasSuffix(base, ":\\") {
+			return base
+		}
+		return abs
+	}
+	return d
+}
+
+// sortTree : dossiers d'abord, puis fichiers, chacun par ordre alphabétique.
+func sortTree(items []lsItem) {
+	sort.SliceStable(items, func(i, j int) bool {
+		if di, dj := items[i].info.IsDir(), items[j].info.IsDir(); di != dj {
+			return di
+		}
+		return strings.ToLower(items[i].name) < strings.ToLower(items[j].name)
+	})
+}
+
+// printLsTree : un niveau d'arborescence, à la manière des README.
+//
+//	idem-prefa/
+//	├── api/
+//	├── web/
+//	└── README.md
+func (s *Shell) printLsTree(items []lsItem) {
+	sortTree(items)
+	for i, it := range items {
+		branch := "├── "
+		if i == len(items)-1 {
+			branch = "└── "
+		}
+		fmt.Fprintln(s.out, s.paint("2", branch)+s.lsName(it))
+	}
+}
+
+// Dossiers montrés mais pas dépliés par tree (sauf avec -a) : énormes et sans intérêt pour lire un projet.
+var treeSkip = map[string]bool{
+	"node_modules": true, ".git": true, "vendor": true, "__pycache__": true,
+	".venv": true, "venv": true, ".gradle": true, ".idea": true, ".next": true, "target": true,
+}
+
+func runTree(s *Shell, args []string) int {
+	all, onlyDirs, depth := false, false, -1
+	var paths []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "/f" || a == "/F" || a == "/a" || a == "/A": // options de tree.com, déjà le comportement par défaut
+		case a == "-L" || a == "--level":
+			if i+1 >= len(args) {
+				s.errorf("tree: -L attend un nombre")
+				return 2
+			}
+			i++
+			n, err := strconv.Atoi(args[i])
+			if err != nil || n < 1 {
+				s.errorf("tree: profondeur invalide '%s'", args[i])
+				return 2
+			}
+			depth = n
+		case strings.HasPrefix(a, "-L") && len(a) > 2:
+			n, err := strconv.Atoi(a[2:])
+			if err != nil || n < 1 {
+				s.errorf("tree: profondeur invalide '%s'", a[2:])
+				return 2
+			}
+			depth = n
+		case len(a) > 1 && a[0] == '-':
+			for _, r := range a[1:] {
+				switch r {
+				case 'a':
+					all = true
+				case 'd':
+					onlyDirs = true
+				default:
+					s.errorf("tree: option invalide -- '%c'", r)
+					return 2
+				}
+			}
+		default:
+			paths = append(paths, convertPath(a, runtime.GOOS))
+		}
+	}
+	if len(paths) == 0 {
+		paths = []string{"."}
+	}
+	code := 0
+	for n, root := range paths {
+		info, err := os.Stat(root)
+		if err != nil {
+			s.errorf("tree: impossible d'accéder à '%s' : %v", root, unwrap(err))
+			code = 2
+			continue
+		}
+		if !info.IsDir() {
+			s.errorf("tree: '%s' n'est pas un dossier", root)
+			code = 2
+			continue
+		}
+		if n > 0 {
+			fmt.Fprintln(s.out)
+		}
+		fmt.Fprintln(s.out, s.paint("1;34", treeRootName(root))+"/")
+		var nd, nf int
+		s.walkTree(root, "", 1, depth, all, onlyDirs, &nd, &nf)
+		fmt.Fprintln(s.out)
+		if onlyDirs {
+			fmt.Fprintf(s.out, "%s\n", plural(nd, "dossier", "dossiers"))
+		} else {
+			fmt.Fprintf(s.out, "%s, %s\n", plural(nd, "dossier", "dossiers"), plural(nf, "fichier", "fichiers"))
+		}
+	}
+	return code
+}
+
+func plural(n int, one, many string) string {
+	if n > 1 {
+		return fmt.Sprintf("%d %s", n, many)
+	}
+	return fmt.Sprintf("%d %s", n, one)
+}
+
+func (s *Shell) walkTree(dir, prefix string, level, depth int, all, onlyDirs bool, nd, nf *int) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		fmt.Fprintln(s.out, prefix+s.paint("2", "└── ")+s.paint("31", "[accès refusé]"))
+		return
+	}
+	var items []lsItem
+	for _, e := range entries {
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		if !all && (strings.HasPrefix(e.Name(), ".") || platform.IsHidden(info)) {
+			continue
+		}
+		if onlyDirs && !info.IsDir() {
+			continue
+		}
+		items = append(items, lsItem{e.Name(), info})
+	}
+	sortTree(items)
+	for i, it := range items {
+		branch, next := "├── ", "│   "
+		if i == len(items)-1 {
+			branch, next = "└── ", "    "
+		}
+		name := s.lsName(it)
+		if it.info.IsDir() {
+			*nd++
+		} else {
+			*nf++
+		}
+		folded := it.info.IsDir() && !all && treeSkip[strings.ToLower(it.name)]
+		if folded {
+			name += s.paint("2", " …")
+		}
+		fmt.Fprintln(s.out, s.paint("2", prefix+branch)+name)
+		if it.info.IsDir() && !folded && (depth < 0 || level < depth) {
+			s.walkTree(filepath.Join(dir, it.name), prefix+next, level+1, depth, all, onlyDirs, nd, nf)
+		}
 	}
 }
 
