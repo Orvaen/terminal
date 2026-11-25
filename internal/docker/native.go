@@ -133,9 +133,14 @@ func nativeReady() bool {
 		return false
 	}
 	if !clientInstalled() {
+		// Après un échec, on ne recommence pas à chaque build : le build passe par WSL en attendant.
+		if !retryDue(loadClientState(), time.Now()) {
+			return false
+		}
 		ui.Info("Builds rapides : installation du client docker pour Windows (une seule fois)…")
 		if err := installClient(); err != nil {
-			ui.Warn("client docker Windows non installé (" + err.Error() + ") : le build passe par WSL, plus lent.")
+			ui.Warn("client docker Windows non installé (" + err.Error() + ") : le build passe par WSL, plus lent. " +
+				"Nouvel essai automatique dans " + retryText + " ; tout de suite : apt upgrade docker")
 			return false
 		}
 	}
@@ -251,7 +256,63 @@ var (
 	httpClient        = &http.Client{Timeout: 10 * time.Minute}
 )
 
+// clientState : ce qui est installé dans docker-client (state.json), pour ne télécharger que ce qui
+// manque ou a changé. Versions : nom du fichier → version installée. FailedAt : heure (Unix) du
+// dernier échec d'installation, pour ne pas réessayer à chaque build.
+type clientState struct {
+	Versions map[string]string `json:"versions"`
+	FailedAt int64             `json:"failed_at,omitempty"`
+}
+
+// retryAfter : délai avant un nouvel essai automatique après un échec d'installation du client.
+const (
+	retryAfter = 6 * time.Hour
+	retryText  = "6 h"
+)
+
+func clientStatePath() string { return filepath.Join(clientDir(), "state.json") }
+
+func loadClientState() clientState {
+	var st clientState
+	if data, err := os.ReadFile(clientStatePath()); err == nil {
+		_ = json.Unmarshal(data, &st)
+	}
+	if st.Versions == nil {
+		st.Versions = map[string]string{}
+	}
+	return st
+}
+
+func saveClientState(st clientState) {
+	if data, err := json.MarshalIndent(st, "", "  "); err == nil {
+		_ = writeAtomic(clientStatePath(), data)
+	}
+}
+
+// retryDue : false si la dernière installation a échoué il y a moins de retryAfter.
+func retryDue(st clientState, now time.Time) bool {
+	if st.FailedAt == 0 {
+		return true
+	}
+	since := now.Sub(time.Unix(st.FailedAt, 0))
+	return since < 0 || since >= retryAfter
+}
+
+// upToDate : le fichier est présent et déjà dans cette version.
+func (st clientState) upToDate(path, ver string) bool {
+	return ver != "" && st.Versions[filepath.Base(path)] == ver && fileExists(path)
+}
+
+type clientPlugin struct{ repo, asset, dest string }
+
+var plugins = []clientPlugin{
+	{"docker/buildx", "buildx-%s.windows-amd64.exe", "docker-buildx.exe"},
+	{"docker/compose", "docker-compose-windows-x86_64.exe", "docker-compose.exe"},
+}
+
 // installClient télécharge (ou met à jour) le client docker Windows et ses plugins buildx et compose.
+// Chaque élément est traité à part : ce qui est déjà à jour n'est pas retéléchargé, et l'échec de
+// l'un n'empêche pas (et ne fait pas recommencer) les autres.
 func installClient() error {
 	if runtime.GOARCH != "amd64" {
 		return fmt.Errorf("client docker Windows disponible seulement en x86_64")
@@ -259,10 +320,28 @@ func installClient() error {
 	if err := os.MkdirAll(clientPlugins(), 0o755); err != nil {
 		return err
 	}
+	st := loadClientState()
+	firstErr := installDockerExe(&st)
+	for _, p := range plugins {
+		if err := installPlugin(&st, p); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	st.FailedAt = 0
+	if firstErr != nil {
+		st.FailedAt = time.Now().Unix()
+	}
+	saveClientState(st)
+	return firstErr
+}
 
+func installDockerExe(st *clientState) error {
 	ver, err := latestStaticDocker()
 	if err != nil {
 		return err
+	}
+	if st.upToDate(clientExe(), ver) {
+		return nil
 	}
 	zipData, err := download("docker-"+ver+".zip", dockerStaticIndex+"docker-"+ver+".zip", "")
 	if err != nil {
@@ -275,37 +354,46 @@ func installClient() error {
 	if err := writeAtomic(clientExe(), exe); err != nil {
 		return err
 	}
+	st.Versions[filepath.Base(clientExe())] = ver
+	saveClientState(*st)
+	return nil
+}
 
-	plugins := []struct{ repo, asset, dest string }{
-		{"docker/buildx", "buildx-%s.windows-amd64.exe", "docker-buildx.exe"},
-		{"docker/compose", "docker-compose-windows-x86_64.exe", "docker-compose.exe"},
+func installPlugin(st *clientState, p clientPlugin) error {
+	rel, err := latestRelease(p.repo)
+	if err != nil {
+		return err
 	}
-	for _, p := range plugins {
-		tag, err := latestTag(p.repo)
-		if err != nil {
-			return err
-		}
-		asset := p.asset
-		if strings.Contains(asset, "%s") {
-			asset = fmt.Sprintf(asset, tag)
-		}
-		base := githubDownload + p.repo + "/releases/download/" + tag + "/"
-		sums, err := download("", base+"checksums.txt", "")
-		if err != nil {
-			return err
-		}
-		sum, ok := checksumFor(sums, asset)
-		if !ok {
-			return fmt.Errorf("somme de contrôle introuvable pour %s", asset)
-		}
-		data, err := download(asset, base+asset, sum)
-		if err != nil {
-			return err
-		}
-		if err := writeAtomic(filepath.Join(clientPlugins(), p.dest), data); err != nil {
-			return err
-		}
+	dest := filepath.Join(clientPlugins(), p.dest)
+	if st.upToDate(dest, rel.Tag) {
+		return nil
 	}
+	asset := p.asset
+	if strings.Contains(asset, "%s") {
+		asset = fmt.Sprintf(asset, rel.Tag)
+	}
+	base := githubDownload + p.repo + "/releases/download/" + rel.Tag + "/"
+	// Somme SHA-256 : checksums.txt de la release, sinon l'empreinte publiée par GitHub pour le fichier
+	// (certaines releases de buildx n'ont pas les binaires Windows dans checksums.txt).
+	sum, ok := "", false
+	if sums, err := download("", base+"checksums.txt", ""); err == nil {
+		sum, ok = checksumFor(sums, asset)
+	}
+	if !ok {
+		sum, ok = rel.digest(asset)
+	}
+	if !ok {
+		return fmt.Errorf("somme de contrôle introuvable pour %s", asset)
+	}
+	data, err := download(asset, base+asset, sum)
+	if err != nil {
+		return err
+	}
+	if err := writeAtomic(dest, data); err != nil {
+		return err
+	}
+	st.Versions[p.dest] = rel.Tag
+	saveClientState(*st)
 	return nil
 }
 
@@ -337,29 +425,49 @@ func pickLatestStatic(page string) (string, error) {
 	return best, nil
 }
 
-func latestTag(repo string) (string, error) {
+// ghRelease : une release GitHub, avec l'empreinte SHA-256 que GitHub publie pour chaque fichier.
+type ghRelease struct {
+	Tag    string `json:"tag_name"`
+	Assets []struct {
+		Name   string `json:"name"`
+		Digest string `json:"digest"` // « sha256:<hex> »
+	} `json:"assets"`
+}
+
+func (r ghRelease) digest(name string) (string, bool) {
+	for _, a := range r.Assets {
+		if a.Name != name {
+			continue
+		}
+		sum, found := strings.CutPrefix(strings.ToLower(a.Digest), "sha256:")
+		if _, err := hex.DecodeString(sum); found && err == nil && len(sum) == 64 {
+			return sum, true
+		}
+	}
+	return "", false
+}
+
+func latestRelease(repo string) (ghRelease, error) {
+	var rel ghRelease
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, githubAPI+repo+"/releases/latest", nil)
 	if err != nil {
-		return "", err
+		return rel, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("dernière version de %s : %w", repo, err)
+		return rel, fmt.Errorf("dernière version de %s : %w", repo, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("dernière version de %s : HTTP %d", repo, resp.StatusCode)
-	}
-	var rel struct {
-		Tag string `json:"tag_name"`
+		return rel, fmt.Errorf("dernière version de %s : HTTP %d", repo, resp.StatusCode)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&rel); err != nil || rel.Tag == "" || strings.ContainsAny(rel.Tag, `/\`) {
-		return "", fmt.Errorf("dernière version de %s illisible", repo)
+		return rel, fmt.Errorf("dernière version de %s illisible", repo)
 	}
-	return rel.Tag, nil
+	return rel, nil
 }
 
 // checksumFor lit une ligne « <sha256>  [*]<fichier> » dans un checksums.txt.

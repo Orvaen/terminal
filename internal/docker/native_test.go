@@ -3,14 +3,23 @@ package docker
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
+
+func runtimeNotAmd64() bool { return runtime.GOARCH != "amd64" }
 
 func TestPlanFor(t *testing.T) {
 	cases := []struct {
@@ -169,5 +178,112 @@ func TestCertsHandshake(t *testing.T) {
 	}
 	if dial(stranger) == nil {
 		t.Fatal("un certificat d'une autre autorité doit être refusé")
+	}
+}
+
+// Faux download.docker.com et GitHub. buildx n'a pas sa ligne dans checksums.txt (comme la release
+// v0.39.1) : son empreinte vient de l'API, si withDigest.
+func fakeDockerSites(t *testing.T, withDigest bool) map[string]int {
+	t.Helper()
+	dir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", dir)
+	t.Setenv("LocalAppData", dir)
+	t.Setenv("HOME", dir)
+
+	var zbuf bytes.Buffer
+	zw := zip.NewWriter(&zbuf)
+	w, _ := zw.Create("docker/docker.exe")
+	w.Write([]byte("MZ-docker"))
+	zw.Close()
+	sha := func(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToString(h[:]) }
+
+	hits := map[string]int{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits[r.URL.Path]++
+		switch r.URL.Path {
+		case "/static/":
+			fmt.Fprint(w, `<a href="docker-29.10.1.zip">docker-29.10.1.zip</a>`)
+		case "/static/docker-29.10.1.zip":
+			w.Write(zbuf.Bytes())
+		case "/api/docker/buildx/releases/latest":
+			digest := ""
+			if withDigest {
+				digest = "sha256:" + sha("MZ-buildx")
+			}
+			fmt.Fprintf(w, `{"tag_name":"v0.39.1","assets":[{"name":"buildx-v0.39.1.windows-amd64.exe","digest":%q}]}`, digest)
+		case "/api/docker/compose/releases/latest":
+			fmt.Fprint(w, `{"tag_name":"v5.0.0","assets":[]}`)
+		case "/gh/docker/buildx/releases/download/v0.39.1/checksums.txt":
+			fmt.Fprintf(w, "%s *buildx-v0.39.1.linux-amd64\n", sha("autre"))
+		case "/gh/docker/buildx/releases/download/v0.39.1/buildx-v0.39.1.windows-amd64.exe":
+			fmt.Fprint(w, "MZ-buildx")
+		case "/gh/docker/compose/releases/download/v5.0.0/checksums.txt":
+			fmt.Fprintf(w, "%s *docker-compose-windows-x86_64.exe\n", sha("MZ-compose"))
+		case "/gh/docker/compose/releases/download/v5.0.0/docker-compose-windows-x86_64.exe":
+			fmt.Fprint(w, "MZ-compose")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	oldIndex, oldAPI, oldDL := dockerStaticIndex, githubAPI, githubDownload
+	dockerStaticIndex, githubAPI, githubDownload = srv.URL+"/static/", srv.URL+"/api/", srv.URL+"/gh/"
+	t.Cleanup(func() { dockerStaticIndex, githubAPI, githubDownload = oldIndex, oldAPI, oldDL })
+	return hits
+}
+
+const (
+	zipPath    = "/static/docker-29.10.1.zip"
+	buildxPath = "/gh/docker/buildx/releases/download/v0.39.1/buildx-v0.39.1.windows-amd64.exe"
+	composeExe = "/gh/docker/compose/releases/download/v5.0.0/docker-compose-windows-x86_64.exe"
+)
+
+// Ce qui est déjà à jour n'est pas retéléchargé, et buildx s'installe avec l'empreinte de l'API
+// quand checksums.txt ne le liste pas.
+func TestInstallClientOnlyOnce(t *testing.T) {
+	if runtimeNotAmd64() {
+		t.Skip("client Windows : amd64 seulement")
+	}
+	hits := fakeDockerSites(t, true)
+	for i := 0; i < 2; i++ {
+		if err := installClient(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !clientInstalled() {
+		t.Fatal("client non installé")
+	}
+	for _, p := range []string{zipPath, buildxPath, composeExe} {
+		if hits[p] != 1 {
+			t.Errorf("%s téléchargé %d fois, attendu 1", p, hits[p])
+		}
+	}
+	if got, _ := os.ReadFile(filepath.Join(clientPlugins(), "docker-buildx.exe")); string(got) != "MZ-buildx" {
+		t.Fatalf("buildx : %q", got)
+	}
+}
+
+// Un plugin sans somme de contrôle : docker.exe et compose sont gardés, rien n'est retéléchargé au
+// build suivant, et le nouvel essai attend retryAfter.
+func TestInstallClientPluginFailure(t *testing.T) {
+	if runtimeNotAmd64() {
+		t.Skip("client Windows : amd64 seulement")
+	}
+	hits := fakeDockerSites(t, false)
+	for i := 0; i < 2; i++ {
+		if err := installClient(); err == nil || !strings.Contains(err.Error(), "somme de contrôle introuvable") {
+			t.Fatalf("erreur attendue, obtenu %v", err)
+		}
+	}
+	if hits[zipPath] != 1 || hits[composeExe] != 1 || hits[buildxPath] != 0 {
+		t.Fatalf("téléchargements : %v", hits)
+	}
+	if clientInstalled() {
+		t.Fatal("buildx manque : le client ne doit pas être considéré installé")
+	}
+	st := loadClientState()
+	now := time.Unix(st.FailedAt, 0)
+	if st.FailedAt == 0 || retryDue(st, now.Add(time.Hour)) || !retryDue(st, now.Add(retryAfter)) {
+		t.Fatalf("délai avant nouvel essai : %+v", st)
 	}
 }

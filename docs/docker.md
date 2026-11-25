@@ -69,7 +69,9 @@ l'envoie au moteur en un seul flux.
 
 - Le client (`docker.exe`, avec les plugins **BuildKit** et **Compose**) est téléchargé une fois dans
   `%LOCALAPPDATA%\OrvaenTerminal\docker-client`, depuis `download.docker.com` et les releases GitHub de Docker
-  (sommes SHA-256 vérifiées pour les plugins). Il est mis à jour par `apt upgrade docker`.
+  (sommes SHA-256 vérifiées pour les plugins). Il est mis à jour par `apt upgrade docker`, qui ne
+  retélécharge que ce qui a changé. Si l'installation échoue, le build passe par WSL et un nouvel essai a lieu
+  6 h plus tard (tout de suite avec `apt upgrade docker`).
 - Il parle au moteur sur `localhost:23760`, en **TLS avec certificat client** : seul ton compte Windows a les clés,
   les autres comptes du PC ne peuvent pas utiliser le moteur.
 - Tes identifiants `docker login` sont repris pour les builds (images de base privées).
